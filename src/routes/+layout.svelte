@@ -8,10 +8,15 @@
 	import { Menu } from 'lucide-svelte';
 
 	let { children } = $props();
+	let dbReady = $state(false);
 
-	onMount(() => {
+	$effect.pre(() => {
 		if (browser) {
-			initializeDB().catch(console.error);
+			initializeDB()
+				.then(() => {
+					dbReady = true;
+				})
+				.catch(console.error);
 		}
 	});
 </script>
@@ -32,7 +37,13 @@
 			</Sidebar.Content>
 		</Sidebar.Root>
 		<Sidebar.Inset>
-			{@render children()}
+			{#if dbReady}
+				{@render children()}
+			{:else}
+				<div class="flex h-screen items-center justify-center">
+					<p class="text-muted-foreground">Initializing database...</p>
+				</div>
+			{/if}
 		</Sidebar.Inset>
 	</Sidebar.Provider>
 </div>
