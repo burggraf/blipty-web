@@ -6,6 +6,8 @@
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import SqlQueryBox from '$lib/components/SqlQueryBox.svelte';
 	import { Menu } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
 
 	let { children } = $props();
 	let dbReady = $state(false);
@@ -33,6 +35,11 @@
 				</div>
 			</Sidebar.Header>
 			<Sidebar.Content>
+				<div class="p-2">
+					<DatabaseTestDialog>
+						<Button variant="outline" class="w-full">Test Database Connection</Button>
+					</DatabaseTestDialog>
+				</div>
 				<SqlQueryBox />
 			</Sidebar.Content>
 		</Sidebar.Root>
