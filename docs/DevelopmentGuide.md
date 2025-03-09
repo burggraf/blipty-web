@@ -117,27 +117,38 @@ _Schema optimized for Xtream data relationships[3][5][9]_
 
 ```typescript
 // lib/db.ts
-import { initSQLite } from '@subframe7536/sqlite-wasm';
-import { useIdbStorage } from '@subframe7536/sqlite-wasm/idb';
+import initSqlJs from 'sql.js';
+import type { Database, SqlJsStatic } from 'sql.js';
 
-let dbInstance: SQLiteDB | null = null;
+let dbInstance: Database | null = null;
 
 export async function initializeDB() {
 	if (!dbInstance) {
-		dbInstance = await initSQLite(
-			useIdbStorage('xtream-client', {
-				url: 'https://cdn.jsdelivr.net/npm/@subframe7536/sqlite-wasm@0.5.0/wa-sqlite-async.wasm'
-			})
-		);
+		try {
+			SQL = await initSqlJs({ locateFile: (file) => `/sql.js/${file}` });
 
-		await dbInstance.run(`PRAGMA journal_mode = WAL`);
-		await dbInstance.run(`PRAGMA synchronous = NORMAL`);
+			// Try to load existing database from IndexedDB
+			const savedDb = await storage.loadDatabase();
+			if (savedDb) {
+				dbInstance = new SQL.Database(savedDb);
+			} else {
+				dbInstance = new SQL.Database();
+				await createTables();
+			}
+
+			// Enable WAL mode for better performance
+			await query('PRAGMA journal_mode = WAL');
+			await query('PRAGMA synchronous = NORMAL');
+		} catch (error) {
+			console.error('Failed to initialize SQLite:', error);
+			throw error;
+		}
 	}
 	return dbInstance;
 }
 ```
 
-_Implements IndexedDB-backed SQLite with WAL mode[2][8]_
+_Implements sql.js with IndexedDB persistence and WAL mode[2][8]_
 
 ---
 
@@ -251,7 +262,7 @@ _Implements shadcn-svelte components with lazy loading[6][12]_
    ```bash
    bun create svelte@latest xtream-client
    cd xtream-client
-   bun install @subframe7536/sqlite-wasm @shadcn-svelte/ui
+   bun install sql.js @types/sql.js @shadcn-svelte/ui
    ```
 2. Implement SQLite WASM initialization
 3. Create base UI layout with sidebar components
@@ -299,14 +310,21 @@ _Implements shadcn-svelte components with lazy loading[6][12]_
 
 2. **OPFS Browser Support**
    - Problem: Safari lacks complete OPFS implementation[8]
-   - Solution: Feature detection with fallback
+   - Solution: Feature detection with IndexedDB fallback
      ```typescript
-     const storageStrategy = () => {
-     	if (typeof FileSystemSyncAccessHandle !== 'undefined') {
-     		return useOPFSStorage('xtream.db');
+     // Use IndexedDB for all browsers since sql.js doesn't support OPFS directly
+     export class StorageService {
+     	async init(): Promise<void> {
+     		return new Promise((resolve, reject) => {
+     			const request = indexedDB.open('blipty-storage', 1);
+     			request.onerror = () => reject(request.error);
+     			request.onsuccess = () => {
+     				this.db = request.result;
+     				resolve();
+     			};
+     		});
      	}
-     	return useIdbStorage('xtream.db');
-     };
+     }
      ```
 
 ---
