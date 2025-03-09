@@ -32,5 +32,12 @@
 		"tailwindcss-animate": "^1.0.7",
 		"typescript": "^5.0.0",
 		"vite": "^6.0.0"
+	},
+	"dependencies": {
+		"@subframe7536/sqlite-wasm": "^0.5.3",
+		"@types/sql.js": "^1.4.9",
+		"@vlcn.io/wa-crsqlite": "^0.8.0",
+		"@vlcn.io/wa-sqlite": "^0.22.0",
+		"sql.js": "^1.12.0"
 	}
 }
