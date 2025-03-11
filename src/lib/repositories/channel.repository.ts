@@ -18,6 +18,8 @@ export interface EPGEntry {
 }
 
 export class ChannelRepository {
+    private static BATCH_SIZE = 500;
+
     async create(channel: Channel): Promise<number> {
         const result = await query<{ id: number }>(
             `INSERT INTO channels (category_id, stream_id, name, icon_url, metadata)
@@ -36,20 +38,30 @@ export class ChannelRepository {
 
     async bulkCreate(channels: Channel[]): Promise<void> {
         startDbOperation('bulkCreateChannels');
-        // Remove transaction wrapper since it will be handled by the parent
-        for (const channel of channels) {
+
+        // Process channels in batches
+        for (let i = 0; i < channels.length; i += ChannelRepository.BATCH_SIZE) {
+            const batch = channels.slice(i, i + ChannelRepository.BATCH_SIZE);
+
+            // Create parameterized values string for the batch
+            const values = batch.map(() => '(?, ?, ?, ?, ?)').join(',');
+
+            // Flatten parameters array
+            const params = batch.flatMap(channel => [
+                channel.category_id,
+                channel.stream_id,
+                channel.name,
+                channel.icon_url,
+                channel.metadata ? JSON.stringify(channel.metadata) : null
+            ]);
+
             await query(
                 `INSERT OR IGNORE INTO channels (category_id, stream_id, name, icon_url, metadata)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [
-                    channel.category_id,
-                    channel.stream_id,
-                    channel.name,
-                    channel.icon_url,
-                    channel.metadata ? JSON.stringify(channel.metadata) : null
-                ]
+                 VALUES ${values}`,
+                params
             );
         }
+
         endDbOperation('bulkCreateChannels');
     }
 

@@ -55,16 +55,16 @@ export class XtreamApiClient {
         return this.fetchJson<XtreamCategory[]>(this.getApiUrl('get_live_categories'));
     }
 
-    async getLiveStreams(categoryId: string): Promise<XtreamChannel[]> {
-        return this.fetchJson<XtreamChannel[]>(this.getApiUrl('get_live_streams') + `&category_id=${categoryId}`);
+    async getAllLiveStreams(): Promise<XtreamChannel[]> {
+        return this.fetchJson<XtreamChannel[]>(this.getApiUrl('get_live_streams'));
     }
 
     async getVodCategories(): Promise<XtreamCategory[]> {
         return this.fetchJson<XtreamCategory[]>(this.getApiUrl('get_vod_categories'));
     }
 
-    async getVodStreams(categoryId: string): Promise<XtreamChannel[]> {
-        return this.fetchJson<XtreamChannel[]>(this.getApiUrl('get_vod_streams') + `&category_id=${categoryId}`);
+    async getAllVodStreams(): Promise<XtreamChannel[]> {
+        return this.fetchJson<XtreamChannel[]>(this.getApiUrl('get_vod_streams'));
     }
 
     async getSeriesCategories(): Promise<XtreamCategory[]> {

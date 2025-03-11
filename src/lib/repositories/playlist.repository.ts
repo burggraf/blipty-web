@@ -127,22 +127,28 @@ export class PlaylistRepository {
         type: 'live' | 'vod_movie' | 'vod_series',
         categories: XtreamCategory[]
     ): Promise<void> {
-        for (const category of categories) {
-            // Get the local category ID
-            const [localCategory] = await query(
-                'SELECT id FROM categories WHERE playlist_id = ? AND category_type = ? AND category_id = ?',
-                [playlistId, type, category.category_id]
-            );
+        // Get all streams at once
+        const allStreams = type === 'live'
+            ? await api.getAllLiveStreams()
+            : await api.getAllVodStreams();
 
-            if (!localCategory?.id) continue;
+        const allChannelsToCreate = [];
+        const categoryMap = new Map(categories.map(c => [c.category_id, c]));
 
-            // Fetch streams for this category
-            const streams = type === 'live'
-                ? await api.getLiveStreams(category.category_id)
-                : await api.getVodStreams(category.category_id);
+        // Find corresponding local category IDs
+        const localCategories = await query<{ id: number, category_id: string }>(
+            'SELECT id, category_id FROM categories WHERE playlist_id = ? AND category_type = ?',
+            [playlistId, type]
+        );
+        const categoryIdMap = new Map(localCategories.map(c => [c.category_id, c.id]));
 
-            const channelsToCreate = streams.map(stream => ({
-                category_id: localCategory.id,
+        // Filter and map streams by their categories
+        for (const stream of allStreams) {
+            const localCategoryId = categoryIdMap.get(stream.category_id);
+            if (!localCategoryId) continue;
+
+            allChannelsToCreate.push({
+                category_id: localCategoryId,
                 stream_id: stream.stream_id,
                 name: stream.name,
                 icon_url: stream.stream_icon,
@@ -155,9 +161,10 @@ export class PlaylistRepository {
                     custom_sid: stream.custom_sid,
                     is_adult: stream.is_adult === '1'
                 }
-            }));
-
-            await this.channelRepo.bulkCreate(channelsToCreate);
+            });
         }
+
+        // Bulk insert all channels at once
+        await this.channelRepo.bulkCreate(allChannelsToCreate);
     }
 }

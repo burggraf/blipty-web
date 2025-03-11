@@ -11,6 +11,8 @@ export interface Category {
 }
 
 export class CategoryRepository {
+    private static BATCH_SIZE = 500;
+
     async create(category: Category): Promise<number> {
         const result = await query<{ id: number }>(
             `INSERT INTO categories (playlist_id, category_type, category_id, name)
@@ -22,12 +24,25 @@ export class CategoryRepository {
     }
 
     async bulkCreate(categories: Category[]): Promise<void> {
-        // Remove transaction wrapper since it will be handled by the parent
-        for (const category of categories) {
+        // Process categories in batches
+        for (let i = 0; i < categories.length; i += CategoryRepository.BATCH_SIZE) {
+            const batch = categories.slice(i, i + CategoryRepository.BATCH_SIZE);
+
+            // Create parameterized values string for the batch
+            const values = batch.map(() => '(?, ?, ?, ?)').join(',');
+
+            // Flatten parameters array
+            const params = batch.flatMap(category => [
+                category.playlist_id,
+                category.category_type,
+                category.category_id,
+                category.name
+            ]);
+
             await query(
                 `INSERT OR IGNORE INTO categories (playlist_id, category_type, category_id, name)
-                 VALUES (?, ?, ?, ?)`,
-                [category.playlist_id, category.category_type, category.category_id, category.name]
+                 VALUES ${values}`,
+                params
             );
         }
     }
