@@ -80,6 +80,11 @@ export class PlaylistRepository {
 
         try {
             await transaction(async () => {
+                // Delete existing data for this playlist
+                await query('DELETE FROM epg_data WHERE channel_id IN (SELECT id FROM channels WHERE category_id IN (SELECT id FROM categories WHERE playlist_id = ?))', [playlistId]);
+                await query('DELETE FROM channels WHERE category_id IN (SELECT id FROM categories WHERE playlist_id = ?)', [playlistId]);
+                await query('DELETE FROM categories WHERE playlist_id = ?', [playlistId]);
+
                 // Sync live content
                 const liveCategories = await api.getLiveCategories();
                 await this.syncCategories(playlist.id!, 'live', liveCategories);
