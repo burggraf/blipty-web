@@ -4,7 +4,6 @@
 	import { onMount } from 'svelte';
 	import { initializeDB } from '$lib/services/db';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import SqlQueryBox from '$lib/components/SqlQueryBox.svelte';
 	import { Menu } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
@@ -37,10 +36,9 @@
 			<Sidebar.Content>
 				<div class="p-2">
 					<DatabaseTestDialog>
-						<Button variant="outline" class="w-full">Test Database Connection</Button>
+						<Button variant="outline" class="w-full">Execute SQL Query</Button>
 					</DatabaseTestDialog>
 				</div>
-				<SqlQueryBox />
 			</Sidebar.Content>
 		</Sidebar.Root>
 		<Sidebar.Inset>
