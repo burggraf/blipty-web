@@ -3,7 +3,9 @@
 	import AddPlaylistForm from '$lib/components/AddPlaylistForm.svelte';
 	import type { Playlist } from '$lib/repositories/playlist.repository';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, RotateCw } from 'lucide-svelte';
+	import PlusCircle from 'lucide-svelte/icons/plus-circle';
+	import RotateCw from 'lucide-svelte/icons/rotate-cw';
+	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
 	import * as Dialog from '$lib/components/ui/dialog';
 
@@ -11,6 +13,7 @@
 	let playlists: Playlist[] = [];
 	let loading = true;
 	let syncing: number | null = null;
+	let deleting: number | null = null;
 	let error: string | null = null;
 	let showAddPlaylistDialog = false;
 
@@ -41,6 +44,21 @@
 		}
 	}
 
+	async function deletePlaylist(id: number) {
+		if (deleting !== null) return;
+		error = null;
+		deleting = id;
+		try {
+			await playlistRepo.delete(id);
+			await loadPlaylists();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to delete playlist';
+			console.error('Failed to delete playlist:', err);
+		} finally {
+			deleting = null;
+		}
+	}
+
 	function handlePlaylistCreated() {
 		loadPlaylists();
 		showAddPlaylistDialog = false;
@@ -65,7 +83,7 @@
 			<div class="flex items-center justify-between">
 				<h1 class="text-2xl font-semibold tracking-tight">Your Playlists</h1>
 				<Button onclick={() => (showAddPlaylistDialog = true)}>
-					<Plus class="mr-2 h-4 w-4" />
+					<PlusCircle class="mr-2 h-4 w-4" />
 					Add Playlist
 				</Button>
 			</div>
@@ -81,15 +99,26 @@
 					<div class="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
 						<div class="flex items-center justify-between">
 							<h2 class="text-lg font-semibold">{playlist.name}</h2>
-							<Button
-								variant="ghost"
-								size="sm"
-								disabled={syncing !== null}
-								onclick={() => playlist.id && syncPlaylist(playlist.id)}
-							>
-								<RotateCw class={cn('h-4 w-4', syncing === playlist.id && 'animate-spin')} />
-								<span class="sr-only">Sync {playlist.name}</span>
-							</Button>
+							<div class="flex gap-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={syncing !== null}
+									onclick={() => playlist.id && syncPlaylist(playlist.id)}
+								>
+									<RotateCw class={cn('h-4 w-4', syncing === playlist.id && 'animate-spin')} />
+									<span class="sr-only">Sync {playlist.name}</span>
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={deleting !== null}
+									onclick={() => playlist.id && deletePlaylist(playlist.id)}
+								>
+									<Trash2 class={cn('h-4 w-4', deleting === playlist.id && 'text-destructive')} />
+									<span class="sr-only">Delete {playlist.name}</span>
+								</Button>
+							</div>
 						</div>
 						<p class="text-sm text-muted-foreground">{playlist.server_url}</p>
 					</div>
