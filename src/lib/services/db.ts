@@ -57,12 +57,57 @@ async function persistDatabase() {
     }
 }
 
+async function migrateToProviderTerminology() {
+    await transaction(async () => {
+        // Check if old tables exist
+        const oldTableExists = await query<{ cnt: number }>(
+            "SELECT count(*) as cnt FROM sqlite_master WHERE type='table' AND name='playlists'"
+        );
+
+        if (oldTableExists[0]?.cnt > 0) {
+            // Create new tables
+            await exec(`
+                CREATE TABLE IF NOT EXISTS providers (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    server_url TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    password TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+
+                -- Move data from playlists to providers if it exists
+                INSERT OR IGNORE INTO providers (id, name, server_url, username, password, created_at)
+                SELECT id, name, server_url, username, password, created_at FROM playlists;
+
+                -- Create temporary table for categories
+                CREATE TABLE categories_new (
+                    id INTEGER PRIMARY KEY,
+                    provider_id INTEGER REFERENCES providers(id),
+                    category_type TEXT CHECK(category_type IN ('live', 'vod_movie', 'vod_series')),
+                    category_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    UNIQUE(provider_id, category_type, category_id)
+                );
+
+                -- Move data from old categories table
+                INSERT OR IGNORE INTO categories_new (id, provider_id, category_type, category_id, name)
+                SELECT id, playlist_id, category_type, category_id, name FROM categories;
+
+                -- Drop old tables
+                DROP TABLE IF EXISTS categories;
+                ALTER TABLE categories_new RENAME TO categories;
+                DROP TABLE IF EXISTS playlists;
+            `);
+        }
+    });
+}
+
 async function createTables() {
     if (!dbInstance) throw new Error('Database not initialized');
 
-    // Create tables as per schema
     await exec(`
-        CREATE TABLE IF NOT EXISTS playlists (
+        CREATE TABLE IF NOT EXISTS providers (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             server_url TEXT NOT NULL,
@@ -73,11 +118,11 @@ async function createTables() {
 
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY,
-            playlist_id INTEGER REFERENCES playlists(id),
+            provider_id INTEGER REFERENCES providers(id),
             category_type TEXT CHECK(category_type IN ('live', 'vod_movie', 'vod_series')),
             category_id TEXT NOT NULL,
             name TEXT NOT NULL,
-            UNIQUE(playlist_id, category_type, category_id)
+            UNIQUE(provider_id, category_type, category_id)
         );
 
         CREATE TABLE IF NOT EXISTS channels (
@@ -105,6 +150,9 @@ async function createTables() {
             expires INTEGER NOT NULL
         );
     `);
+
+    // Run migration for existing databases
+    await migrateToProviderTerminology();
 }
 
 // Execute raw SQL

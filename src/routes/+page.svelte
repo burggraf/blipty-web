@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { PlaylistRepository } from '$lib/repositories/playlist.repository';
-	import AddPlaylistForm from '$lib/components/AddPlaylistForm.svelte';
-	import type { Playlist } from '$lib/repositories/playlist.repository';
+	import { ProviderRepository } from '$lib/repositories/provider.repository';
+	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
+	import type { Provider } from '$lib/repositories/provider.repository';
 	import { Button } from '$lib/components/ui/button';
 	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import RotateCw from 'lucide-svelte/icons/rotate-cw';
@@ -9,65 +9,65 @@
 	import { cn } from '$lib/utils';
 	import * as Dialog from '$lib/components/ui/dialog';
 
-	const playlistRepo = new PlaylistRepository();
-	let playlists: Playlist[] = [];
+	const providerRepo = new ProviderRepository();
+	let providers: Provider[] = [];
 	let loading = true;
 	let syncing: number | null = null;
 	let deleting: number | null = null;
 	let error: string | null = null;
-	let showAddPlaylistDialog = false;
+	let showAddProviderDialog = false;
 
-	async function loadPlaylists() {
+	async function loadProviders() {
 		error = null;
 		try {
-			playlists = await playlistRepo.findAll();
+			providers = await providerRepo.findAll();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load playlists';
-			console.error('Failed to load playlists:', err);
+			error = err instanceof Error ? err.message : 'Failed to load providers';
+			console.error('Failed to load providers:', err);
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function syncPlaylist(id: number) {
+	async function syncProvider(id: number) {
 		if (syncing !== null) return;
 		error = null;
 		syncing = id;
 		try {
-			await playlistRepo.sync(id);
-			await loadPlaylists();
+			await providerRepo.sync(id);
+			await loadProviders();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to sync playlist';
-			console.error('Failed to sync playlist:', err);
+			error = err instanceof Error ? err.message : 'Failed to sync provider';
+			console.error('Failed to sync provider:', err);
 		} finally {
 			syncing = null;
 		}
 	}
 
-	async function deletePlaylist(id: number) {
+	async function deleteProvider(id: number) {
 		if (deleting !== null) return;
 		error = null;
 		deleting = id;
 		try {
-			await playlistRepo.delete(id);
-			await loadPlaylists();
+			await providerRepo.delete(id);
+			await loadProviders();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete playlist';
-			console.error('Failed to delete playlist:', err);
+			error = err instanceof Error ? err.message : 'Failed to delete provider';
+			console.error('Failed to delete provider:', err);
 		} finally {
 			deleting = null;
 		}
 	}
 
-	function handlePlaylistCreated() {
-		loadPlaylists();
-		showAddPlaylistDialog = false;
+	function handleProviderCreated() {
+		loadProviders();
+		showAddProviderDialog = false;
 	}
 
 	// Initialize on client side
 	if (typeof window !== 'undefined') {
-		loadPlaylists();
-		window.addEventListener('playlist:created', handlePlaylistCreated);
+		loadProviders();
+		window.addEventListener('provider:created', handleProviderCreated);
 	}
 </script>
 
@@ -75,16 +75,16 @@
 	<div class="flex h-[70vh] items-center justify-center">
 		<div class="text-muted-foreground">Loading...</div>
 	</div>
-{:else if playlists.length === 0}
-	<AddPlaylistForm />
+{:else if providers.length === 0}
+	<AddProviderForm />
 {:else}
 	<div class="container py-6">
 		<div class="flex flex-col gap-4">
 			<div class="flex items-center justify-between">
-				<h1 class="text-2xl font-semibold tracking-tight">Your Playlists</h1>
-				<Button onclick={() => (showAddPlaylistDialog = true)}>
+				<h1 class="text-2xl font-semibold tracking-tight">Your Providers</h1>
+				<Button onclick={() => (showAddProviderDialog = true)}>
 					<PlusCircle class="mr-2 h-4 w-4" />
-					Add Playlist
+					Add Provider
 				</Button>
 			</div>
 
@@ -95,32 +95,32 @@
 			{/if}
 
 			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-				{#each playlists as playlist (playlist.id)}
+				{#each providers as provider (provider.id)}
 					<div class="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
 						<div class="flex items-center justify-between">
-							<h2 class="text-lg font-semibold">{playlist.name}</h2>
+							<h2 class="text-lg font-semibold">{provider.name}</h2>
 							<div class="flex gap-2">
 								<Button
 									variant="ghost"
 									size="sm"
 									disabled={syncing !== null}
-									onclick={() => playlist.id && syncPlaylist(playlist.id)}
+									onclick={() => provider.id && syncProvider(provider.id)}
 								>
-									<RotateCw class={cn('h-4 w-4', syncing === playlist.id && 'animate-spin')} />
-									<span class="sr-only">Sync {playlist.name}</span>
+									<RotateCw class={cn('h-4 w-4', syncing === provider.id && 'animate-spin')} />
+									<span class="sr-only">Sync {provider.name}</span>
 								</Button>
 								<Button
 									variant="ghost"
 									size="sm"
 									disabled={deleting !== null}
-									onclick={() => playlist.id && deletePlaylist(playlist.id)}
+									onclick={() => provider.id && deleteProvider(provider.id)}
 								>
-									<Trash2 class={cn('h-4 w-4', deleting === playlist.id && 'text-destructive')} />
-									<span class="sr-only">Delete {playlist.name}</span>
+									<Trash2 class={cn('h-4 w-4', deleting === provider.id && 'text-destructive')} />
+									<span class="sr-only">Delete {provider.name}</span>
 								</Button>
 							</div>
 						</div>
-						<p class="text-sm text-muted-foreground">{playlist.server_url}</p>
+						<p class="text-sm text-muted-foreground">{provider.server_url}</p>
 					</div>
 				{/each}
 			</div>
@@ -128,8 +128,8 @@
 	</div>
 {/if}
 
-<Dialog.Root bind:open={showAddPlaylistDialog}>
+<Dialog.Root bind:open={showAddProviderDialog}>
 	<Dialog.Content class="max-w-md">
-		<AddPlaylistForm />
+		<AddProviderForm />
 	</Dialog.Content>
 </Dialog.Root>

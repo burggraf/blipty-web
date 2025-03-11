@@ -4,7 +4,7 @@ export type CategoryType = 'live' | 'vod_movie' | 'vod_series';
 
 export interface Category {
     id?: number;
-    playlist_id: number;
+    provider_id: number;
     category_type: CategoryType;
     category_id: string;
     name: string;
@@ -15,10 +15,10 @@ export class CategoryRepository {
 
     async create(category: Category): Promise<number> {
         const result = await query<{ id: number }>(
-            `INSERT INTO categories (playlist_id, category_type, category_id, name)
+            `INSERT INTO categories (provider_id, category_type, category_id, name)
              VALUES (?, ?, ?, ?)
              RETURNING id`,
-            [category.playlist_id, category.category_type, category.category_id, category.name]
+            [category.provider_id, category.category_type, category.category_id, category.name]
         );
         return result[0].id;
     }
@@ -33,26 +33,26 @@ export class CategoryRepository {
 
             // Flatten parameters array
             const params = batch.flatMap(category => [
-                category.playlist_id,
+                category.provider_id,
                 category.category_type,
                 category.category_id,
                 category.name
             ]);
 
             await query(
-                `INSERT OR IGNORE INTO categories (playlist_id, category_type, category_id, name)
+                `INSERT OR IGNORE INTO categories (provider_id, category_type, category_id, name)
                  VALUES ${values}`,
                 params
             );
         }
     }
 
-    async findByPlaylist(playlistId: number, type?: CategoryType): Promise<Category[]> {
+    async findByProvider(providerId: number, type?: CategoryType): Promise<Category[]> {
         const sql = type
-            ? 'SELECT * FROM categories WHERE playlist_id = ? AND category_type = ? ORDER BY name'
-            : 'SELECT * FROM categories WHERE playlist_id = ? ORDER BY category_type, name';
+            ? 'SELECT * FROM categories WHERE provider_id = ? AND category_type = ? ORDER BY name'
+            : 'SELECT * FROM categories WHERE provider_id = ? ORDER BY category_type, name';
 
-        const params = type ? [playlistId, type] : [playlistId];
+        const params = type ? [providerId, type] : [providerId];
         return query<Category>(sql, params);
     }
 

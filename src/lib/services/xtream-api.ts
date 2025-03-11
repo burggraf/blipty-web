@@ -1,4 +1,4 @@
-import type { Playlist } from '$lib/repositories/playlist.repository';
+import type { Provider } from '$lib/repositories/provider.repository';
 
 export interface XtreamCategory {
     category_id: string;
@@ -7,31 +7,29 @@ export interface XtreamCategory {
 }
 
 export interface XtreamChannel {
-    num: number;
-    name: string;
-    stream_type: string;
     stream_id: string;
+    name: string;
     stream_icon: string;
     epg_channel_id: string;
     added: string;
-    is_adult: string;
     category_id: string;
-    custom_sid: string;
     tv_archive: number;
-    direct_source: string;
     tv_archive_duration: number;
+    direct_source: string;
+    custom_sid: string;
+    is_adult: string;
 }
 
 export class XtreamApiClient {
-    constructor(private playlist: Playlist) {
-        // Validate playlist data
-        if (!playlist.server_url || !playlist.username || !playlist.password) {
-            throw new Error('Invalid playlist configuration: Missing required fields');
+    constructor(private provider: Provider) {
+        // Validate provider data
+        if (!provider.server_url || !provider.username || !provider.password) {
+            throw new Error('Invalid provider configuration: Missing required fields');
         }
     }
 
     private getApiUrl(action: string): string {
-        const url = `${this.playlist.server_url}/player_api.php?username=${this.playlist.username}&password=${this.playlist.password}&action=${action}`;
+        const url = `${this.provider.server_url}/player_api.php?username=${this.provider.username}&password=${this.provider.password}&action=${action}`;
         console.debug('Xtream API request:', url);
         return url;
     }

@@ -69,7 +69,7 @@ _Implementation based on Xtream API analysis[1][3][5][9]_
 ### SQLite Tables Structure
 
 ```sql
-CREATE TABLE playlists (
+CREATE TABLE providers (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   server_url TEXT NOT NULL,
@@ -80,11 +80,11 @@ CREATE TABLE playlists (
 
 CREATE TABLE categories (
   id INTEGER PRIMARY KEY,
-  playlist_id INTEGER REFERENCES playlists(id),
+  provider_id INTEGER REFERENCES providers(id),
   category_type TEXT CHECK(category_type IN ('live', 'vod_movie', 'vod_series')),
   category_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  UNIQUE(playlist_id, category_type, category_id)
+  UNIQUE(provider_id, category_type, category_id)
 );
 
 CREATE TABLE channels (
@@ -154,13 +154,13 @@ _Implements sql.js with IndexedDB persistence and WAL mode[2][8]_
 
 ## UI Component Structure
 
-### Playlist Management Workflow
+### Provider Management Workflow
 
 ```svelte
-{#each $playlists as playlist (playlist.id)}
-	{playlist.name}
+{#each $providers as provider (provider.id)}
+	{provider.name}
 
-	loadContent(playlist, type)} />
+	loadContent(provider, type)} />
 {/each}
 
 {#if selectedChannel}{:else}{/if}
@@ -294,16 +294,16 @@ _Implements shadcn-svelte components with lazy loading[6][12]_
    - Problem: Individual EPG calls per channel cause performance issues[9]
    - Solution: Implement batch EPG endpoint detection with fallback
      ```typescript
-     async function fetchEPG(playlist: Playlist, channelIds: string[]) {
+     async function fetchEPG(provider: Provider, channelIds: string[]) {
      	try {
      		// Attempt batch endpoint
      		const res = await fetch(
-     			`${playlist.server_url}/xmltv.php?username=${playlist.username}&password=${playlist.password}`
+     			`${provider.server_url}/xmltv.php?username=${provider.username}&password=${provider.password}`
      		);
      		return parseXmltv(await res.text());
      	} catch {
      		// Fallback to individual requests
-     		return Promise.all(channelIds.map((id) => fetch(API_ENDPOINTS.EPG_DATA(playlist, id))));
+     		return Promise.all(channelIds.map((id) => fetch(API_ENDPOINTS.EPG_DATA(provider, id))));
      	}
      }
      ```
