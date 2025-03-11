@@ -2,16 +2,17 @@
 	import { PlaylistRepository } from '$lib/repositories/playlist.repository';
 	import AddPlaylistForm from '$lib/components/AddPlaylistForm.svelte';
 	import type { Playlist } from '$lib/repositories/playlist.repository';
-	import { browser } from '$app/environment';
 	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw } from 'lucide-svelte';
+	import { Plus, RotateCw } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	const playlistRepo = new PlaylistRepository();
-	let playlists = $state<Playlist[]>([]);
-	let loading = $state(true);
-	let syncing = $state<number | null>(null);
-	let error = $state<string | null>(null);
+	let playlists: Playlist[] = [];
+	let loading = true;
+	let syncing: number | null = null;
+	let error: string | null = null;
+	let showAddPlaylistDialog = false;
 
 	async function loadPlaylists() {
 		error = null;
@@ -31,7 +32,6 @@
 		syncing = id;
 		try {
 			await playlistRepo.sync(id);
-			// Reload playlists after sync
 			await loadPlaylists();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to sync playlist';
@@ -43,17 +43,14 @@
 
 	function handlePlaylistCreated() {
 		loadPlaylists();
+		showAddPlaylistDialog = false;
 	}
 
-	$effect(() => {
-		if (browser) {
-			loadPlaylists();
-			window.addEventListener('playlist:created', handlePlaylistCreated);
-			return () => {
-				window.removeEventListener('playlist:created', handlePlaylistCreated);
-			};
-		}
-	});
+	// Initialize on client side
+	if (typeof window !== 'undefined') {
+		loadPlaylists();
+		window.addEventListener('playlist:created', handlePlaylistCreated);
+	}
 </script>
 
 {#if loading}
@@ -65,7 +62,13 @@
 {:else}
 	<div class="container py-6">
 		<div class="flex flex-col gap-4">
-			<h1 class="text-2xl font-semibold tracking-tight">Your Playlists</h1>
+			<div class="flex items-center justify-between">
+				<h1 class="text-2xl font-semibold tracking-tight">Your Playlists</h1>
+				<Button onclick={() => (showAddPlaylistDialog = true)}>
+					<Plus class="mr-2 h-4 w-4" />
+					Add Playlist
+				</Button>
+			</div>
 
 			{#if error}
 				<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
@@ -84,7 +87,7 @@
 								disabled={syncing !== null}
 								onclick={() => playlist.id && syncPlaylist(playlist.id)}
 							>
-								<RefreshCw class={cn('h-4 w-4', syncing === playlist.id && 'animate-spin')} />
+								<RotateCw class={cn('h-4 w-4', syncing === playlist.id && 'animate-spin')} />
 								<span class="sr-only">Sync {playlist.name}</span>
 							</Button>
 						</div>
@@ -95,3 +98,9 @@
 		</div>
 	</div>
 {/if}
+
+<Dialog.Root bind:open={showAddPlaylistDialog}>
+	<Dialog.Content class="max-w-md">
+		<AddPlaylistForm />
+	</Dialog.Content>
+</Dialog.Root>
