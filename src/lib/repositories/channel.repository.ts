@@ -36,21 +36,20 @@ export class ChannelRepository {
 
     async bulkCreate(channels: Channel[]): Promise<void> {
         startDbOperation('bulkCreateChannels');
-        await transaction(async () => {
-            for (const channel of channels) {
-                await query(
-                    `INSERT OR IGNORE INTO channels (category_id, stream_id, name, icon_url, metadata)
-                     VALUES (?, ?, ?, ?, ?)`,
-                    [
-                        channel.category_id,
-                        channel.stream_id,
-                        channel.name,
-                        channel.icon_url,
-                        channel.metadata ? JSON.stringify(channel.metadata) : null
-                    ]
-                );
-            }
-        });
+        // Remove transaction wrapper since it will be handled by the parent
+        for (const channel of channels) {
+            await query(
+                `INSERT OR IGNORE INTO channels (category_id, stream_id, name, icon_url, metadata)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [
+                    channel.category_id,
+                    channel.stream_id,
+                    channel.name,
+                    channel.icon_url,
+                    channel.metadata ? JSON.stringify(channel.metadata) : null
+                ]
+            );
+        }
         endDbOperation('bulkCreateChannels');
     }
 
@@ -75,8 +74,9 @@ export class ChannelRepository {
             .map(key => `${key} = ?`);
 
         const values = fields.map(field => {
-            const value = channel[field.split(' ')[0]];
-            return field === 'metadata' ? JSON.stringify(value) : value;
+            const key = field.split(' ')[0] as keyof Channel;
+            const value = channel[key];
+            return key === 'metadata' ? JSON.stringify(value) : value;
         });
 
         if (fields.length === 0) return false;

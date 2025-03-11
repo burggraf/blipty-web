@@ -116,14 +116,16 @@ export async function exec(sql: string): Promise<void> {
 // Query helper function
 export async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
     if (!dbInstance) throw new Error('Database not initialized');
-    return dbInstance.exec(sql, params)[0]?.values?.map(row => {
+    const result = dbInstance.exec(sql, params)[0];
+    if (!result) return [];
+
+    return result.values.map(row => {
         const obj: any = {};
-        const columns = dbInstance!.exec(sql)[0]?.columns || [];
-        columns.forEach((col, i) => {
+        result.columns.forEach((col, i) => {
             obj[col] = row[i];
         });
         return obj as T;
-    }) || [];
+    });
 }
 
 // Transaction helper

@@ -1,4 +1,7 @@
-import { query, transaction } from '$lib/services/db';
+import { query, transaction, startDbOperation, endDbOperation } from '$lib/services/db';
+import { XtreamApiClient, type XtreamCategory, type XtreamChannel } from '$lib/services/xtream-api';
+import { CategoryRepository } from './category.repository';
+import { ChannelRepository } from './channel.repository';
 
 export interface Playlist {
     id?: number;
@@ -10,6 +13,9 @@ export interface Playlist {
 }
 
 export class PlaylistRepository {
+    private categoryRepo = new CategoryRepository();
+    private channelRepo = new ChannelRepository();
+
     async create(playlist: Playlist): Promise<number> {
         const result = await query<{ id: number }>(
             `INSERT INTO playlists (name, server_url, username, password)
@@ -26,7 +32,7 @@ export class PlaylistRepository {
 
     async findById(id: number): Promise<Playlist | null> {
         const results = await query<Playlist>(
-            'SELECT * FROM playlists WHERE id = ?',
+            'SELECT id, name, server_url, username, password, created_at FROM playlists WHERE id = ?',
             [id]
         );
         return results[0] || null;
@@ -37,7 +43,10 @@ export class PlaylistRepository {
             .filter(key => key !== 'id' && key !== 'created_at')
             .map(key => `${key} = ?`);
 
-        const values = fields.map(field => playlist[field.split(' ')[0]]);
+        const values = fields.map(field => {
+            const key = field.split(' ')[0] as keyof Playlist;
+            return playlist[key];
+        });
 
         if (fields.length === 0) return false;
 
@@ -60,5 +69,90 @@ export class PlaylistRepository {
             await query('DELETE FROM playlists WHERE id = ?', [id]);
         });
         return true;
+    }
+
+    async sync(playlistId: number): Promise<void> {
+        const playlist = await this.findById(playlistId);
+        if (!playlist) throw new Error('Playlist not found');
+
+        const api = new XtreamApiClient(playlist);
+        startDbOperation('syncPlaylist');
+
+        try {
+            await transaction(async () => {
+                // Sync live content
+                const liveCategories = await api.getLiveCategories();
+                await this.syncCategories(playlist.id!, 'live', liveCategories);
+                await this.syncChannels(api, playlist.id!, 'live', liveCategories);
+
+                // Sync VOD content
+                const vodCategories = await api.getVodCategories();
+                await this.syncCategories(playlist.id!, 'vod_movie', vodCategories);
+                await this.syncChannels(api, playlist.id!, 'vod_movie', vodCategories);
+
+                // Sync Series content
+                const seriesCategories = await api.getSeriesCategories();
+                await this.syncCategories(playlist.id!, 'vod_series', seriesCategories);
+                // Series content requires special handling due to seasons/episodes
+                // TODO: Implement series content sync
+            });
+        } finally {
+            endDbOperation('syncPlaylist');
+        }
+    }
+
+    private async syncCategories(
+        playlistId: number,
+        type: 'live' | 'vod_movie' | 'vod_series',
+        categories: XtreamCategory[]
+    ): Promise<void> {
+        const categoriesToCreate = categories.map(cat => ({
+            playlist_id: playlistId,
+            category_type: type,
+            category_id: cat.category_id,
+            name: cat.category_name
+        }));
+
+        await this.categoryRepo.bulkCreate(categoriesToCreate);
+    }
+
+    private async syncChannels(
+        api: XtreamApiClient,
+        playlistId: number,
+        type: 'live' | 'vod_movie' | 'vod_series',
+        categories: XtreamCategory[]
+    ): Promise<void> {
+        for (const category of categories) {
+            // Get the local category ID
+            const [localCategory] = await query(
+                'SELECT id FROM categories WHERE playlist_id = ? AND category_type = ? AND category_id = ?',
+                [playlistId, type, category.category_id]
+            );
+
+            if (!localCategory?.id) continue;
+
+            // Fetch streams for this category
+            const streams = type === 'live'
+                ? await api.getLiveStreams(category.category_id)
+                : await api.getVodStreams(category.category_id);
+
+            const channelsToCreate = streams.map(stream => ({
+                category_id: localCategory.id,
+                stream_id: stream.stream_id,
+                name: stream.name,
+                icon_url: stream.stream_icon,
+                metadata: {
+                    epg_channel_id: stream.epg_channel_id,
+                    added: stream.added,
+                    tv_archive: stream.tv_archive,
+                    tv_archive_duration: stream.tv_archive_duration,
+                    direct_source: stream.direct_source,
+                    custom_sid: stream.custom_sid,
+                    is_adult: stream.is_adult === '1'
+                }
+            }));
+
+            await this.channelRepo.bulkCreate(channelsToCreate);
+        }
     }
 }

@@ -22,15 +22,14 @@ export class CategoryRepository {
     }
 
     async bulkCreate(categories: Category[]): Promise<void> {
-        await transaction(async () => {
-            for (const category of categories) {
-                await query(
-                    `INSERT OR IGNORE INTO categories (playlist_id, category_type, category_id, name)
-                     VALUES (?, ?, ?, ?)`,
-                    [category.playlist_id, category.category_type, category.category_id, category.name]
-                );
-            }
-        });
+        // Remove transaction wrapper since it will be handled by the parent
+        for (const category of categories) {
+            await query(
+                `INSERT OR IGNORE INTO categories (playlist_id, category_type, category_id, name)
+                 VALUES (?, ?, ?, ?)`,
+                [category.playlist_id, category.category_type, category.category_id, category.name]
+            );
+        }
     }
 
     async findByPlaylist(playlistId: number, type?: CategoryType): Promise<Category[]> {
@@ -55,7 +54,10 @@ export class CategoryRepository {
             .filter(key => key !== 'id')
             .map(key => `${key} = ?`);
 
-        const values = fields.map(field => category[field.split(' ')[0]]);
+        const values = fields.map(field => {
+            const key = field.split(' ')[0] as keyof Category;
+            return category[key];
+        });
 
         if (fields.length === 0) return false;
 
