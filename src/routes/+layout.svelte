@@ -1,10 +1,9 @@
 <script lang="ts">
 	import '../app.css';
 	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
 	import { initializeDB } from '$lib/services/db';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { Menu } from 'lucide-svelte';
+	import { MenuIcon } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
 
@@ -28,7 +27,7 @@
 			<Sidebar.Header>
 				<div class="flex items-center gap-2 px-2">
 					<Sidebar.Trigger>
-						<Menu />
+						<MenuIcon />
 					</Sidebar.Trigger>
 					<span class="font-semibold">Database Testing</span>
 				</div>
