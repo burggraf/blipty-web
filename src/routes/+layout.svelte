@@ -10,7 +10,6 @@
 	import { CategoryRepository } from '$lib/repositories/category.repository';
 	import { ChannelRepository } from '$lib/repositories/channel.repository';
 	import type { Provider } from '$lib/repositories/provider.repository';
-	import type { Category, CategoryType } from '$lib/repositories/category.repository';
 	import type { Channel } from '$lib/repositories/channel.repository';
 
 	let { children } = $props<{ children: any }>();
@@ -21,8 +20,13 @@
 	let categoryRepo = new CategoryRepository();
 	let channelRepo = new ChannelRepository();
 
-	// Store categories and channels by provider
-	let categoriesByProvider = $state<Record<number, Record<CategoryType, Category[]>>>({});
+	// Store category stats and channels by provider
+	let categoryStatsByProvider = $state<Record<number, { category_type: string; count: number }[]>>(
+		{}
+	);
+	let categoriesByType = $state<
+		Record<number, Record<string, { category_id: number; name: string; channel_count: number }[]>>
+	>({});
 	let channelsByCategory = $state<Record<number, Channel[]>>({});
 
 	$effect.pre(() => {
@@ -60,8 +64,9 @@
 		syncingProviders.add(providerId);
 		try {
 			await providerRepo.sync(providerId);
-			// Refresh providers after sync
+			// Refresh providers and data after sync
 			providers = await providerRepo.findAll();
+			await loadProviderData(providerId);
 		} catch (err) {
 			console.error('Failed to sync provider:', err);
 		} finally {
@@ -70,27 +75,40 @@
 	}
 
 	async function loadProviderData(providerId: number) {
-		// Load live categories
-		const liveCategories = await categoryRepo.findByProvider(providerId, 'live');
-		const movieCategories = await categoryRepo.findByProvider(providerId, 'vod_movie');
-		const seriesCategories = await categoryRepo.findByProvider(providerId, 'vod_series');
+		// Get category type statistics
+		categoryStatsByProvider[providerId] = await categoryRepo.getCategoryTypeStats(providerId);
 
-		categoriesByProvider[providerId] = {
-			live: liveCategories,
-			vod_movie: movieCategories,
-			vod_series: seriesCategories
-		};
+		// Initialize categories by type for this provider
+		categoriesByType[providerId] = {};
 
-		// Load channels for each category
-		for (const category of [...liveCategories, ...movieCategories, ...seriesCategories]) {
-			if (category.id) {
-				channelsByCategory[category.id] = await channelRepo.findByCategory(category.id);
+		// Load categories for each type
+		for (const stat of categoryStatsByProvider[providerId]) {
+			const categories = await categoryRepo.getCategoriesByType(providerId, stat.category_type);
+			categoriesByType[providerId][stat.category_type] = categories;
+
+			// Load channels for each category
+			for (const category of categories) {
+				channelsByCategory[category.category_id] = await channelRepo.findByCategory(
+					category.category_id
+				);
 			}
+		}
+	}
+
+	function getCategoryTypeLabel(type: string): string {
+		switch (type) {
+			case 'live':
+				return 'Live TV';
+			case 'vod_movie':
+				return 'Movies';
+			case 'vod_series':
+				return 'Series';
+			default:
+				return type;
 		}
 	}
 </script>
 
-<!-- svelte-ignore a11y_missing_attribute -->
 <div class="flex">
 	<Sidebar.Provider>
 		<Sidebar.Root>
@@ -131,79 +149,37 @@
 									</Button>
 								</div>
 								<Accordion.Content>
-									{#if provider.id && categoriesByProvider[provider.id]}
+									{#if provider.id && categoryStatsByProvider[provider.id]}
 										<Accordion.Root type="multiple" class="pl-4">
-											{#if categoriesByProvider[provider.id].live?.length}
-												<Accordion.Item value={`${provider.id}-live`}>
-													<Accordion.Trigger>Live TV</Accordion.Trigger>
-													<Accordion.Content>
-														<Accordion.Root type="multiple" class="pl-4">
-															{#each categoriesByProvider[provider.id].live as category}
-																<Accordion.Item value={`category-${category.id}`}>
-																	<Accordion.Trigger>{category.name}</Accordion.Trigger>
-																	<Accordion.Content>
-																		<div class="pl-4 text-sm">
-																			{#if category.id && channelsByCategory[category.id]}
-																				{#each channelsByCategory[category.id] as channel}
-																					<div class="py-1">{channel.name}</div>
-																				{/each}
-																			{/if}
-																		</div>
-																	</Accordion.Content>
-																</Accordion.Item>
-															{/each}
-														</Accordion.Root>
-													</Accordion.Content>
-												</Accordion.Item>
-											{/if}
-
-											{#if categoriesByProvider[provider.id].vod_movie?.length}
-												<Accordion.Item value={`${provider.id}-movies`}>
-													<Accordion.Trigger>Movies</Accordion.Trigger>
-													<Accordion.Content>
-														<Accordion.Root type="multiple" class="pl-4">
-															{#each categoriesByProvider[provider.id].vod_movie as category}
-																<Accordion.Item value={`category-${category.id}`}>
-																	<Accordion.Trigger>{category.name}</Accordion.Trigger>
-																	<Accordion.Content>
-																		<div class="pl-4 text-sm">
-																			{#if category.id && channelsByCategory[category.id]}
-																				{#each channelsByCategory[category.id] as channel}
-																					<div class="py-1">{channel.name}</div>
-																				{/each}
-																			{/if}
-																		</div>
-																	</Accordion.Content>
-																</Accordion.Item>
-															{/each}
-														</Accordion.Root>
-													</Accordion.Content>
-												</Accordion.Item>
-											{/if}
-
-											{#if categoriesByProvider[provider.id].vod_series?.length}
-												<Accordion.Item value={`${provider.id}-series`}>
-													<Accordion.Trigger>Series</Accordion.Trigger>
-													<Accordion.Content>
-														<Accordion.Root type="multiple" class="pl-4">
-															{#each categoriesByProvider[provider.id].vod_series as category}
-																<Accordion.Item value={`category-${category.id}`}>
-																	<Accordion.Trigger>{category.name}</Accordion.Trigger>
-																	<Accordion.Content>
-																		<div class="pl-4 text-sm">
-																			{#if category.id && channelsByCategory[category.id]}
-																				{#each channelsByCategory[category.id] as channel}
-																					<div class="py-1">{channel.name}</div>
-																				{/each}
-																			{/if}
-																		</div>
-																	</Accordion.Content>
-																</Accordion.Item>
-															{/each}
-														</Accordion.Root>
-													</Accordion.Content>
-												</Accordion.Item>
-											{/if}
+											{#each categoryStatsByProvider[provider.id] as { category_type, count }}
+												{#if count > 0}
+													<Accordion.Item value={`${provider.id}-${category_type}`}>
+														<Accordion.Trigger>
+															{getCategoryTypeLabel(category_type)} ({count})
+														</Accordion.Trigger>
+														<Accordion.Content>
+															<Accordion.Root type="multiple" class="pl-4">
+																{#each categoriesByType[provider.id][category_type] as category}
+																	<Accordion.Item value={`category-${category.category_id}`}>
+																		<Accordion.Trigger>
+																			{category.name} ({category.channel_count})
+																		</Accordion.Trigger>
+																		<Accordion.Content>
+																			<div class="pl-4 text-sm">
+																				{#if channelsByCategory[category.category_id]}
+																					{#each channelsByCategory[category.category_id] as channel}
+																						<div class="py-1">{channel.name}</div>
+																					{/each}
+																				{/if}
+																			</div>
+																		</Accordion.Content>
+																	</Accordion.Item>
+																{/each}
+															</Accordion.Root>
+														</Accordion.Content>
+													</Accordion.Item>
+												{/if}
+											{/each}
 										</Accordion.Root>
 									{/if}
 								</Accordion.Content>

@@ -94,4 +94,26 @@ export class CategoryRepository {
         });
         return true;
     }
+
+    async getCategoryTypeStats(providerId: number): Promise<{ category_type: CategoryType; count: number }[]> {
+        return query<{ category_type: CategoryType; count: number }>(
+            'SELECT category_type, COUNT(*) as count FROM categories WHERE provider_id = ? GROUP BY category_type',
+            [providerId]
+        );
+    }
+
+    async getCategoriesByType(providerId: number, categoryType: CategoryType): Promise<{ category_id: number; name: string; channel_count: number }[]> {
+        return query<{ category_id: number; name: string; channel_count: number }>(
+            `SELECT 
+                c.id as category_id, 
+                c.name,
+                COUNT(ch.id) as channel_count
+             FROM categories c
+             LEFT JOIN channels ch ON ch.category_id = c.id
+             WHERE c.provider_id = ? AND c.category_type = ?
+             GROUP BY c.id, c.name
+             ORDER BY c.name`,
+            [providerId, categoryType]
+        );
+    }
 }
