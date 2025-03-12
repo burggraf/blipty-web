@@ -17,6 +17,9 @@
 	let deleting: number | null = null;
 	let error: string | null = null;
 	let showAddProviderDialog = false;
+	let selectedChannel: { id: number; name: string; stream_id: string; provider_id: number } | null =
+		null;
+	let selectedChannelUrl: string = '';
 
 	async function loadProviders() {
 		error = null;
@@ -60,6 +63,21 @@
 		}
 	}
 
+	async function selectChannel(channel: {
+		id: number;
+		name: string;
+		stream_id: string;
+		provider_id: number;
+	}) {
+		selectedChannel = channel;
+		const provider = await providerRepo.findById(channel.provider_id);
+		console.log('>>>provider', provider);
+		if (provider) {
+			selectedChannelUrl = `${provider.server_url}/live/${provider.username}/${provider.password}/${channel.stream_id}.ts`;
+			console.log('selectedChannelUrl', selectedChannelUrl);
+		}
+	}
+
 	function handleProviderCreated() {
 		loadProviders();
 		showAddProviderDialog = false;
@@ -70,6 +88,16 @@
 		loadProviders();
 		window.addEventListener('provider:created', handleProviderCreated);
 	}
+
+	$effect(() => {
+		const handleChannelSelected = (event: CustomEvent) => {
+			console.log('>>>handleChannelSelected:', event.detail);
+			selectChannel(event.detail);
+		};
+		window.addEventListener('channel:selected', handleChannelSelected as EventListener);
+		return () =>
+			window.removeEventListener('channel:selected', handleChannelSelected as EventListener);
+	});
 </script>
 
 {#if loading}
@@ -127,7 +155,7 @@
 			</div>
 		</div>
 	</div>
-	<VideoPlayer src={''} channelName={'Channel Name'} />
+	<VideoPlayer src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
 {/if}
 
 <Dialog.Root bind:open={showAddProviderDialog}>

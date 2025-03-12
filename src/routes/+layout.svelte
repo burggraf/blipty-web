@@ -95,6 +95,21 @@
 		}
 	}
 
+	async function handleChannelClick(channel: any, providerId: number) {
+		console.log('handleChannelClick', channel);
+		const provider = await providerRepo.findById(providerId);
+		if (provider) {
+			window.dispatchEvent(
+				new CustomEvent('channel:selected', {
+					detail: {
+						...channel,
+						provider_id: providerId
+					}
+				})
+			);
+		}
+	}
+
 	function getCategoryTypeLabel(type: string): string {
 		switch (type) {
 			case 'live':
@@ -168,7 +183,13 @@
 																			<div class="pl-4 text-sm">
 																				{#if channelsByCategory[category.category_id]}
 																					{#each channelsByCategory[category.category_id] as channel}
-																						<div class="py-1">{channel.name}</div>
+																						<button
+																							class="w-full rounded-sm px-2 py-1 text-left hover:bg-accent/50"
+																							onclick={() =>
+																								handleChannelClick(channel, provider.id!)}
+																						>
+																							{channel.name}
+																						</button>
 																					{/each}
 																				{/if}
 																			</div>
