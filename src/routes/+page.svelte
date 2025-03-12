@@ -3,11 +3,9 @@
 	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
 	import type { Provider } from '$lib/repositories/provider.repository';
 	import { Button } from '$lib/components/ui/button';
-	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import RotateCw from 'lucide-svelte/icons/rotate-cw';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 	import Wrapper from '$lib/components/Wrapper.svelte';
 
@@ -17,7 +15,6 @@
 	let syncing = $state<number | null>(null);
 	let deleting = $state<number | null>(null);
 	let error = $state<string | null>(null);
-	let showAddProviderDialog = $state(false);
 	let selectedChannel = $state<{
 		id: number;
 		name: string;
@@ -79,7 +76,6 @@
 		console.log('>>>provider', provider);
 		if (provider) {
 			selectedChannelUrl = `${provider.server_url}/live/${provider.username}/${provider.password}/${channel.stream_id}.ts`;
-			// const vp: any = document.getElementById('vp');
 			const vp: any = document.getElementsByName('VideoPlayer');
 			if (vp) {
 				console.log('vp.src 1:', vp.src);
@@ -97,7 +93,6 @@
 			loadProviders();
 			const handleProviderCreated = () => {
 				loadProviders();
-				showAddProviderDialog = false;
 			};
 			window.addEventListener('provider:created', handleProviderCreated);
 			return () => window.removeEventListener('provider:created', handleProviderCreated);
@@ -124,10 +119,6 @@
 			<Wrapper class="flex flex-col gap-4">
 				<Wrapper class="flex items-center justify-between">
 					<Wrapper tag="h1" class="text-2xl font-semibold tracking-tight">Your Providers</Wrapper>
-					<Button onclick={() => (showAddProviderDialog = true)}>
-						<PlusCircle class="mr-2 h-4 w-4" />
-						Add Provider
-					</Button>
 				</Wrapper>
 
 				{#if error}
@@ -172,9 +163,3 @@
 		<br />selectedChannelUrl: {selectedChannelUrl}
 	{/if}
 </Wrapper>
-
-<Dialog.Root bind:open={showAddProviderDialog}>
-	<Dialog.Content class="max-w-md">
-		<AddProviderForm />
-	</Dialog.Content>
-</Dialog.Root>

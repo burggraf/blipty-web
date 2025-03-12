@@ -11,6 +11,9 @@
 	import { ChannelRepository } from '$lib/repositories/channel.repository';
 	import type { Provider } from '$lib/repositories/provider.repository';
 	import type { Channel } from '$lib/repositories/channel.repository';
+	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
+	import PlusCircle from 'lucide-svelte/icons/plus-circle';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	let { children } = $props<{ children: any }>();
 	let dbReady = $state(false);
@@ -19,6 +22,7 @@
 	let providerRepo = new ProviderRepository();
 	let categoryRepo = new CategoryRepository();
 	let channelRepo = new ChannelRepository();
+	let showAddProviderDialog = $state(false);
 
 	// Store category stats and channels by provider
 	let categoryStatsByProvider = $state<Record<number, { category_type: string; count: number }[]>>(
@@ -132,7 +136,11 @@
 					<Sidebar.Trigger>
 						<MenuIcon />
 					</Sidebar.Trigger>
-					<span class="font-semibold">Database Testing</span>
+					<span class="font-semibold">Providers</span>
+					<Button variant="ghost" size="icon" onclick={() => (showAddProviderDialog = true)}>
+						<PlusCircle class="h-4 w-4" />
+						<span class="sr-only">Add Provider</span>
+					</Button>
 				</div>
 			</Sidebar.Header>
 			<Sidebar.Content>
@@ -221,3 +229,9 @@
 		</Sidebar.Inset>
 	</Sidebar.Provider>
 </div>
+
+<Dialog.Root bind:open={showAddProviderDialog}>
+	<Dialog.Content class="max-w-md">
+		<AddProviderForm />
+	</Dialog.Content>
+</Dialog.Root>
