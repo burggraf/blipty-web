@@ -9,17 +9,22 @@
 	import { cn } from '$lib/utils';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
+	import Wrapper from '$lib/components/Wrapper.svelte';
 
 	const providerRepo = new ProviderRepository();
-	let providers: Provider[] = [];
-	let loading = true;
-	let syncing: number | null = null;
-	let deleting: number | null = null;
-	let error: string | null = null;
-	let showAddProviderDialog = false;
-	let selectedChannel: { id: number; name: string; stream_id: string; provider_id: number } | null =
-		null;
-	let selectedChannelUrl: string = '';
+	let providers = $state<Provider[]>([]);
+	let loading = $state(true);
+	let syncing = $state<number | null>(null);
+	let deleting = $state<number | null>(null);
+	let error = $state<string | null>(null);
+	let showAddProviderDialog = $state(false);
+	let selectedChannel = $state<{
+		id: number;
+		name: string;
+		stream_id: string;
+		provider_id: number;
+	} | null>(null);
+	let selectedChannelUrl = $state('');
 
 	async function loadProviders() {
 		error = null;
@@ -74,24 +79,33 @@
 		console.log('>>>provider', provider);
 		if (provider) {
 			selectedChannelUrl = `${provider.server_url}/live/${provider.username}/${provider.password}/${channel.stream_id}.ts`;
+			// const vp: any = document.getElementById('vp');
+			const vp: any = document.getElementsByName('VideoPlayer');
+			if (vp) {
+				console.log('vp.src 1:', vp.src);
+				vp.src = selectedChannelUrl;
+				console.log('vp.src 2:', vp.src);
+			} else {
+				console.log('vp not found');
+			}
 			console.log('selectedChannelUrl', selectedChannelUrl);
 		}
 	}
 
-	function handleProviderCreated() {
-		loadProviders();
-		showAddProviderDialog = false;
-	}
-
-	// Initialize on client side
-	if (typeof window !== 'undefined') {
-		loadProviders();
-		window.addEventListener('provider:created', handleProviderCreated);
-	}
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			loadProviders();
+			const handleProviderCreated = () => {
+				loadProviders();
+				showAddProviderDialog = false;
+			};
+			window.addEventListener('provider:created', handleProviderCreated);
+			return () => window.removeEventListener('provider:created', handleProviderCreated);
+		}
+	});
 
 	$effect(() => {
 		const handleChannelSelected = (event: CustomEvent) => {
-			console.log('>>>handleChannelSelected:', event.detail);
 			selectChannel(event.detail);
 		};
 		window.addEventListener('channel:selected', handleChannelSelected as EventListener);
@@ -100,63 +114,64 @@
 	});
 </script>
 
-{#if loading}
-	<div class="flex h-[70vh] items-center justify-center">
-		<div class="text-muted-foreground">Loading...</div>
-	</div>
-{:else if providers.length === 0}
-	<AddProviderForm />
-{:else}
-	<div class="container py-6">
-		<div class="flex flex-col gap-4">
-			<div class="flex items-center justify-between">
-				<h1 class="text-2xl font-semibold tracking-tight">Your Providers</h1>
-				<Button onclick={() => (showAddProviderDialog = true)}>
-					<PlusCircle class="mr-2 h-4 w-4" />
-					Add Provider
-				</Button>
-			</div>
+<Wrapper class="flex h-[70vh] items-center justify-center">
+	{#if loading}
+		<Wrapper class="text-muted-foreground">Loading...</Wrapper>
+	{:else if providers.length === 0}
+		<AddProviderForm />
+	{:else}
+		<Wrapper class="container py-6">
+			<Wrapper class="flex flex-col gap-4">
+				<Wrapper class="flex items-center justify-between">
+					<Wrapper tag="h1" class="text-2xl font-semibold tracking-tight">Your Providers</Wrapper>
+					<Button onclick={() => (showAddProviderDialog = true)}>
+						<PlusCircle class="mr-2 h-4 w-4" />
+						Add Provider
+					</Button>
+				</Wrapper>
 
-			{#if error}
-				<div class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-					{error}
-				</div>
-			{/if}
+				{#if error}
+					<Wrapper class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+						{error}
+					</Wrapper>
+				{/if}
 
-			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-				{#each providers as provider (provider.id)}
-					<div class="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
-						<div class="flex items-center justify-between">
-							<h2 class="text-lg font-semibold">{provider.name}</h2>
-							<div class="flex gap-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									disabled={syncing !== null}
-									onclick={() => provider.id && syncProvider(provider.id)}
-								>
-									<RotateCw class={cn('h-4 w-4', syncing === provider.id && 'animate-spin')} />
-									<span class="sr-only">Sync {provider.name}</span>
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									disabled={deleting !== null}
-									onclick={() => provider.id && deleteProvider(provider.id)}
-								>
-									<Trash2 class={cn('h-4 w-4', deleting === provider.id && 'text-destructive')} />
-									<span class="sr-only">Delete {provider.name}</span>
-								</Button>
-							</div>
-						</div>
-						<p class="text-sm text-muted-foreground">{provider.server_url}</p>
-					</div>
-				{/each}
-			</div>
-		</div>
-	</div>
-	<VideoPlayer src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
-{/if}
+				<Wrapper class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+					{#each providers as provider (provider.id)}
+						<Wrapper class="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
+							<Wrapper class="flex items-center justify-between">
+								<Wrapper tag="h2" class="text-lg font-semibold">{provider.name}</Wrapper>
+								<Wrapper class="flex gap-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										disabled={syncing !== null}
+										onclick={() => provider.id && syncProvider(provider.id)}
+									>
+										<RotateCw class={cn('h-4 w-4', syncing === provider.id && 'animate-spin')} />
+										<Wrapper tag="span" class="sr-only">Sync {provider.name}</Wrapper>
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										disabled={deleting !== null}
+										onclick={() => provider.id && deleteProvider(provider.id)}
+									>
+										<Trash2 class={cn('h-4 w-4', deleting === provider.id && 'text-destructive')} />
+										<Wrapper tag="span" class="sr-only">Delete {provider.name}</Wrapper>
+									</Button>
+								</Wrapper>
+							</Wrapper>
+							<Wrapper tag="p" class="text-sm text-muted-foreground">{provider.server_url}</Wrapper>
+						</Wrapper>
+					{/each}
+				</Wrapper>
+			</Wrapper>
+		</Wrapper>
+		<VideoPlayer id="vp" src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
+		<br />selectedChannelUrl: {selectedChannelUrl}
+	{/if}
+</Wrapper>
 
 <Dialog.Root bind:open={showAddProviderDialog}>
 	<Dialog.Content class="max-w-md">
