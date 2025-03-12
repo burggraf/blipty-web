@@ -8,6 +8,7 @@
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import VideoPlayer from '$lib/components/VideoPlayer.svelte';
 
 	const providerRepo = new ProviderRepository();
 	let providers: Provider[] = [];
@@ -126,6 +127,7 @@
 			</div>
 		</div>
 	</div>
+	<VideoPlayer src={''} channelName={'Channel Name'} />
 {/if}
 
 <Dialog.Root bind:open={showAddProviderDialog}>
