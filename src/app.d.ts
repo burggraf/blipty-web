@@ -26,4 +26,10 @@ declare global {
 	const $derived: typeof import('svelte/runes').$derived;
 }
 
+declare namespace svelteHTML {
+	interface HTMLAttributes<T> {
+		[key: string]: any;
+	}
+}
+
 export { };
