@@ -141,6 +141,8 @@ async function createTables() {
             provider_id INTEGER NOT NULL,
             stream_id TEXT NOT NULL,
             favorite BOOLEAN DEFAULT FALSE,
+            hidden BOOLEAN DEFAULT FALSE,
+            restricted BOOLEAN DEFAULT FALSE,
             height NUMERIC,
             width NUMERIC,
             status TEXT,

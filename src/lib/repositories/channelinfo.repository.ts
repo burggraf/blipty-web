@@ -5,6 +5,8 @@ export interface ChannelInfo {
     provider_id: number;
     stream_id: string;
     favorite: boolean;
+    hidden: boolean;
+    restricted: boolean;
     height?: number | null;
     width?: number | null;
     status?: string | null;
@@ -39,13 +41,15 @@ export class ChannelInfoRepository {
 
         const result = await query<{ id: number }>(
             `INSERT INTO channelinfo 
-             (provider_id, stream_id, favorite, height, width, status, last_watched, metadata) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+             (provider_id, stream_id, favorite, hidden, restricted, height, width, status, last_watched, metadata) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
              RETURNING id`,
             [
                 data.provider_id,
                 data.stream_id,
                 data.favorite ? 1 : 0,
+                data.hidden ? 1 : 0,
+                data.restricted ? 1 : 0,
                 data.height || null,
                 data.width || null,
                 data.status || null,
@@ -67,13 +71,15 @@ export class ChannelInfoRepository {
 
         await query(
             `UPDATE channelinfo 
-             SET provider_id = ?, stream_id = ?, favorite = ?, height = ?, 
+             SET provider_id = ?, stream_id = ?, favorite = ?, hidden = ?, restricted = ?, height = ?, 
                  width = ?, status = ?, last_watched = ?, metadata = ?
              WHERE id = ?`,
             [
                 channelInfo.provider_id,
                 channelInfo.stream_id,
                 channelInfo.favorite ? 1 : 0,
+                channelInfo.hidden ? 1 : 0,
+                channelInfo.restricted ? 1 : 0,
                 channelInfo.height || null,
                 channelInfo.width || null,
                 channelInfo.status || null,
@@ -121,8 +127,8 @@ export class ChannelInfoRepository {
         const lastWatched = timestamp ? timestamp.toISOString() : new Date().toISOString();
 
         await query(
-            `INSERT INTO channelinfo (provider_id, stream_id, favorite, last_watched)
-             VALUES (?, ?, 0, ?)
+            `INSERT INTO channelinfo (provider_id, stream_id, favorite, hidden, restricted, last_watched)
+             VALUES (?, ?, 0, 0, 0, ?)
              ON CONFLICT (provider_id, stream_id) DO UPDATE 
              SET last_watched = ?`,
             [providerId, streamId, lastWatched, lastWatched]
@@ -144,7 +150,9 @@ export class ChannelInfoRepository {
             await this.create({
                 provider_id: providerId,
                 stream_id: streamId,
-                favorite: true
+                favorite: true,
+                hidden: false,
+                restricted: false
             });
             return true;
         }
@@ -156,6 +164,8 @@ export class ChannelInfoRepository {
             provider_id: raw.provider_id,
             stream_id: raw.stream_id,
             favorite: Boolean(raw.favorite),
+            hidden: Boolean(raw.hidden),
+            restricted: Boolean(raw.restricted),
             height: raw.height,
             width: raw.width,
             status: raw.status,
