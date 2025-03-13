@@ -368,13 +368,7 @@
 		preload="auto"
 		crossorigin="anonymous"
 	>
-		<track
-			kind="captions"
-			src="path/to/captions.vtt"
-			srclang="en"
-			label="English captions"
-			default
-		/>
+		<track kind="captions" src="" srclang="en" label="English captions" default />
 		<p class="vjs-no-js">
 			To view this video please enable JavaScript, and consider upgrading to a web browser that
 			supports HTML5 video
