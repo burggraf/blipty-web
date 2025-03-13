@@ -3,6 +3,19 @@
 	import videojs from 'video.js';
 	import 'video.js/dist/video-js.css';
 
+	// Add type definitions at the top
+	type ErrorType = string;
+	type ErrorDetail = string;
+	type MediaInfo = {
+		mimeType?: string;
+		duration?: number;
+		[key: string]: any;
+	};
+	type Statistics = {
+		decodedFrames: number;
+		[key: string]: any;
+	};
+
 	let { src } = $props<{ src: string }>();
 	let videoId = $state(`video-${Math.random().toString(36).substring(2, 9)}`);
 	let player = $state<mpegts.Player | null>(null);
@@ -11,7 +24,6 @@
 	let isError = $state(false);
 	let errorMessage = $state('');
 	let videoElement = $state<HTMLVideoElement | null>(null);
-	let isWaitingForInteraction = $state(true);
 	let isInitializing = $state(false);
 	let isDestroying = $state(false);
 
@@ -103,20 +115,20 @@
 			}
 
 			// Set up error handling first
-			player.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
+			player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
 				console.error('mpegts.js error:', { type: errorType, detail: errorDetail, url: src });
 				isError = true;
 				errorMessage = `Stream error: ${errorType} - ${errorDetail}`;
 			});
 
-			player.on(mpegts.Events.STATISTICS_INFO, (stats) => {
+			player.on(mpegts.Events.STATISTICS_INFO, (stats: Statistics) => {
 				console.debug('Stream stats:', stats);
 				if (stats.decodedFrames > 0) {
 					console.log('Stream is decoding successfully');
 				}
 			});
 
-			player.on(mpegts.Events.MEDIA_INFO, (mediaInfo) => {
+			player.on(mpegts.Events.MEDIA_INFO, (mediaInfo: MediaInfo) => {
 				console.debug('Media info:', mediaInfo);
 			});
 
@@ -132,7 +144,7 @@
 				controls: true,
 				fluid: true,
 				liveui: true,
-				autoplay: false,
+				autoplay: true, // Enable autoplay
 				preload: 'auto',
 				html5: {
 					vhs: {
@@ -167,7 +179,7 @@
 					}
 				}, 100);
 
-				player.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
+				player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
 					clearInterval(checkReady);
 					reject(new Error(`Player error: ${errorType} - ${errorDetail}`));
 				});
@@ -193,10 +205,10 @@
 
 			// Clear the check after 10 seconds regardless
 			setTimeout(() => clearInterval(playbackCheck), 10000);
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Player initialization failed:', error);
 			isError = true;
-			errorMessage = error.message || 'Failed to initialize video player';
+			errorMessage = error instanceof Error ? error.message : 'Failed to initialize video player';
 			destroyPlayer();
 		} finally {
 			isInitializing = false;
@@ -210,17 +222,12 @@
 		currentSrc = newSrc;
 		destroyPlayer();
 
-		// Ensure cleanup is complete
+		// Ensure cleanup is complete before initializing new player
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		// Initialize new player
-		await initializePlayer();
-	}
-
-	function startPlayback() {
-		isWaitingForInteraction = false;
-		if (src) {
-			handleSourceChange(src);
+		if (newSrc) {
+			await initializePlayer();
 		}
 	}
 
@@ -233,7 +240,7 @@
 				videoElement = document.getElementById(videoId) as HTMLVideoElement;
 				if (videoElement) {
 					console.log('Video element mounted successfully');
-					videoElement.addEventListener('error', (e) => {
+					videoElement.addEventListener('error', (e: Event) => {
 						const error = videoElement?.error;
 						if (error) {
 							console.error('Video error:', {
@@ -242,10 +249,21 @@
 							});
 						}
 					});
+					// Start playback immediately if we have a source
+					if (src) {
+						handleSourceChange(src);
+					}
 				} else {
 					console.error('Failed to find video element');
 				}
 			}, 0);
+		}
+	});
+
+	$effect(() => {
+		if (src) {
+			console.log('Source changed to:', src);
+			handleSourceChange(src);
 		}
 	});
 
@@ -258,10 +276,6 @@
 </script>
 
 <div class="video-wrapper">
-	{#if isWaitingForInteraction}
-		<button class="play-button" onclick={startPlayback}> Play Video </button>
-	{/if}
-
 	{#if isError}
 		<div class="error-message">
 			<p>{errorMessage}</p>

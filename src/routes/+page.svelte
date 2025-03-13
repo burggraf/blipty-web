@@ -76,14 +76,6 @@
 		console.log('>>>provider', provider);
 		if (provider) {
 			selectedChannelUrl = `${provider.server_url}/live/${provider.username}/${provider.password}/${channel.stream_id}.ts`;
-			const vp: any = document.getElementsByName('VideoPlayer');
-			if (vp) {
-				console.log('vp.src 1:', vp.src);
-				vp.src = selectedChannelUrl;
-				console.log('vp.src 2:', vp.src);
-			} else {
-				console.log('vp not found');
-			}
 			console.log('selectedChannelUrl', selectedChannelUrl);
 		}
 	}
@@ -117,49 +109,14 @@
 	{:else}
 		<Wrapper class="container py-6">
 			<Wrapper class="flex flex-col gap-4">
-				<Wrapper class="flex items-center justify-between">
-					<Wrapper tag="h1" class="text-2xl font-semibold tracking-tight">Your Providers</Wrapper>
-				</Wrapper>
-
 				{#if error}
 					<Wrapper class="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
 						{error}
 					</Wrapper>
+				{:else}
+					<VideoPlayer id="vp" src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
 				{/if}
-
-				<Wrapper class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{#each providers as provider (provider.id)}
-						<Wrapper class="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm">
-							<Wrapper class="flex items-center justify-between">
-								<Wrapper tag="h2" class="text-lg font-semibold">{provider.name}</Wrapper>
-								<Wrapper class="flex gap-2">
-									<Button
-										variant="ghost"
-										size="sm"
-										disabled={syncing !== null}
-										onclick={() => provider.id && syncProvider(provider.id)}
-									>
-										<RotateCw class={cn('h-4 w-4', syncing === provider.id && 'animate-spin')} />
-										<Wrapper tag="span" class="sr-only">Sync {provider.name}</Wrapper>
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										disabled={deleting !== null}
-										onclick={() => provider.id && deleteProvider(provider.id)}
-									>
-										<Trash2 class={cn('h-4 w-4', deleting === provider.id && 'text-destructive')} />
-										<Wrapper tag="span" class="sr-only">Delete {provider.name}</Wrapper>
-									</Button>
-								</Wrapper>
-							</Wrapper>
-							<Wrapper tag="p" class="text-sm text-muted-foreground">{provider.server_url}</Wrapper>
-						</Wrapper>
-					{/each}
-				</Wrapper>
 			</Wrapper>
 		</Wrapper>
-		<VideoPlayer id="vp" src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
-		<br />selectedChannelUrl: {selectedChannelUrl}
 	{/if}
 </Wrapper>
