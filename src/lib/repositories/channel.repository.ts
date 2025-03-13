@@ -3,6 +3,7 @@ import { query, transaction, startDbOperation, endDbOperation } from '$lib/servi
 export interface Channel {
     id?: number;
     category_id: number;
+    provider_id: number;
     stream_id: string;
     name: string;
     icon_url?: string;
@@ -22,11 +23,12 @@ export class ChannelRepository {
 
     async create(channel: Channel): Promise<number> {
         const result = await query<{ id: number }>(
-            `INSERT INTO channels (category_id, stream_id, name, icon_url, metadata)
-             VALUES (?, ?, ?, ?, ?)
+            `INSERT INTO channels (category_id, provider_id, stream_id, name, icon_url, metadata)
+             VALUES (?, ?, ?, ?, ?, ?)
              RETURNING id`,
             [
                 channel.category_id,
+                channel.provider_id,
                 channel.stream_id,
                 channel.name,
                 channel.icon_url,
@@ -44,11 +46,12 @@ export class ChannelRepository {
             const batch = channels.slice(i, i + ChannelRepository.BATCH_SIZE);
 
             // Create parameterized values string for the batch
-            const values = batch.map(() => '(?, ?, ?, ?, ?)').join(',');
+            const values = batch.map(() => '(?, ?, ?, ?, ?, ?)').join(',');
 
             // Flatten parameters array
             const params = batch.flatMap(channel => [
                 channel.category_id,
+                channel.provider_id,
                 channel.stream_id,
                 channel.name,
                 channel.icon_url,
@@ -56,7 +59,7 @@ export class ChannelRepository {
             ]);
 
             await query(
-                `INSERT OR IGNORE INTO channels (category_id, stream_id, name, icon_url, metadata)
+                `INSERT OR IGNORE INTO channels (category_id, provider_id, stream_id, name, icon_url, metadata)
                  VALUES ${values}`,
                 params
             );

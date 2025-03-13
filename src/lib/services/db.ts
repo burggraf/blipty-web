@@ -128,6 +128,7 @@ async function createTables() {
         CREATE TABLE IF NOT EXISTS channels (
             id INTEGER PRIMARY KEY,
             category_id INTEGER REFERENCES categories(id),
+            provider_id INTEGER REFERENCES providers(id),
             stream_id TEXT NOT NULL,
             name TEXT NOT NULL,
             icon_url TEXT,

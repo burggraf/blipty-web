@@ -149,6 +149,7 @@ export class ProviderRepository {
 
             allChannelsToCreate.push({
                 category_id: localCategoryId,
+                provider_id: providerId,
                 stream_id: stream.stream_id,
                 name: stream.name,
                 icon_url: stream.stream_icon,
