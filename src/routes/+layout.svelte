@@ -28,9 +28,9 @@
 	let favoriteChannels = $state<Map<string, boolean>>(new Map());
 
 	// Store category stats and channels by provider
-	let categoryStatsByProvider = $state<Record<number, { category_type: CategoryType; count: number }[]>>(
-		{}
-	);
+	let categoryStatsByProvider = $state<
+		Record<number, { category_type: CategoryType; count: number }[]>
+	>({});
 	let categoriesByType = $state<
 		Record<number, Record<string, { category_id: number; name: string; channel_count: number }[]>>
 	>({});
@@ -71,7 +71,7 @@
 		const favorites = await channelInfoRepo.findFavorites();
 		const newFavorites = new Map();
 
-		favorites.forEach(info => {
+		favorites.forEach((info) => {
 			const key = `${info.provider_id}-${info.stream_id}`;
 			newFavorites.set(key, true);
 		});
@@ -226,7 +226,9 @@
 																			<div class="pl-4 text-sm">
 																				{#if channelsByCategory[category.category_id]}
 																					{#each channelsByCategory[category.category_id] as channel}
-																						<div class="flex items-center gap-1 w-full rounded-sm px-2 py-1 hover:bg-accent/50">
+																						<div
+																							class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
+																						>
 																							<button
 																								class="flex-1 text-left"
 																								onclick={() =>
@@ -238,11 +240,20 @@
 																								variant="ghost"
 																								size="icon"
 																								class="h-6 w-6"
-																								onclick={(e) => toggleFavorite(e, provider.id!, channel.stream_id)}
+																								onclick={(e) =>
+																									toggleFavorite(
+																										e,
+																										provider.id!,
+																										channel.stream_id
+																									)}
 																							>
 																								<Heart
 																									class="h-4 w-4"
-																									fill={favoriteChannels.has(`${provider.id}-${channel.stream_id}`) ? 'currentColor' : 'none'}
+																									fill={favoriteChannels.has(
+																										`${provider.id}-${channel.stream_id}`
+																									)
+																										? 'currentColor'
+																										: 'none'}
 																								/>
 																								<span class="sr-only">Toggle Favorite</span>
 																							</Button>
