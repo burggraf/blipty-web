@@ -17,6 +17,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 
 	let { children } = $props<{ children: any }>();
+
 	let dbReady = $state(false);
 	let providers = $state<Provider[]>([]);
 	let syncingProviders = $state<Set<number>>(new Set());
@@ -35,6 +36,9 @@
 		Record<number, Record<string, { category_id: number; name: string; channel_count: number }[]>>
 	>({});
 	let channelsByCategory = $state<Record<number, Channel[]>>({});
+
+	// New state to store favorite channels by content type
+	let favoriteChannelsByType = $state<Record<number, Record<string, Channel[]>>>({});
 
 	$effect.pre(() => {
 		initializeDB()
@@ -77,11 +81,32 @@
 		});
 
 		favoriteChannels = newFavorites;
+
+		// Load favorite channels by content type for each provider
+		for (const provider of providers) {
+			if (provider.id) {
+				await loadFavoriteChannelsByType(provider.id);
+			}
+		}
+	}
+
+	async function loadFavoriteChannelsByType(providerId: number) {
+		if (!favoriteChannelsByType[providerId]) {
+			favoriteChannelsByType[providerId] = {};
+		}
+
+		// Load favorites for each content type
+		for (const stat of categoryStatsByProvider[providerId] || []) {
+			const type = stat.category_type;
+			favoriteChannelsByType[providerId][type] = await categoryRepo.getFavoriteChannelsByType(
+				providerId,
+				type
+			);
+		}
 	}
 
 	async function toggleFavorite(e: MouseEvent, providerId: number, streamId: string) {
 		e.stopPropagation();
-
 		const newState = await channelInfoRepo.toggleFavorite(providerId, streamId);
 		const key = `${providerId}-${streamId}`;
 
@@ -95,6 +120,9 @@
 		}
 
 		favoriteChannels = updatedFavorites;
+
+		// Reload favorites by content type for this provider
+		await loadFavoriteChannelsByType(providerId);
 	}
 
 	async function syncProvider(providerId: number) {
@@ -132,6 +160,9 @@
 				);
 			}
 		}
+
+		// Load favorite channels by content type
+		await loadFavoriteChannelsByType(providerId);
 	}
 
 	async function handleChannelClick(channel: any, providerId: number) {
@@ -217,6 +248,46 @@
 														</Accordion.Trigger>
 														<Accordion.Content>
 															<Accordion.Root type="multiple" class="pl-4">
+																<!-- Favorites category for this content type -->
+																{#if favoriteChannelsByType[provider.id]?.[category_type]?.length > 0}
+																	<Accordion.Item
+																		value={`favorites-${provider.id}-${category_type}`}
+																	>
+																		<Accordion.Trigger>
+																			Favorites ({favoriteChannelsByType[provider.id][category_type]
+																				.length})
+																		</Accordion.Trigger>
+																		<Accordion.Content>
+																			<div class="pl-4 text-sm">
+																				{#each favoriteChannelsByType[provider.id][category_type] as channel}
+																					<div
+																						class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
+																					>
+																						<button
+																							class="flex-1 text-left"
+																							onclick={() =>
+																								handleChannelClick(channel, provider.id!)}
+																						>
+																							{channel.name}
+																						</button>
+																						<Button
+																							variant="ghost"
+																							size="icon"
+																							class="h-6 w-6"
+																							onclick={(e) =>
+																								toggleFavorite(e, provider.id!, channel.stream_id)}
+																						>
+																							<Heart class="h-4 w-4" fill="currentColor" />
+																							<span class="sr-only">Remove from Favorites</span>
+																						</Button>
+																					</div>
+																				{/each}
+																			</div>
+																		</Accordion.Content>
+																	</Accordion.Item>
+																{/if}
+
+																<!-- Regular categories -->
 																{#each categoriesByType[provider.id][category_type] as category}
 																	<Accordion.Item value={`category-${category.category_id}`}>
 																		<Accordion.Trigger>

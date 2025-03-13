@@ -116,4 +116,27 @@ export class CategoryRepository {
             [providerId, categoryType]
         );
     }
+
+    // New method to get favorite channels by content type
+    async getFavoriteChannelsByType(providerId: number, categoryType: CategoryType): Promise<{
+        id: number;
+        category_id: number;
+        provider_id: number;
+        stream_id: string;
+        name: string;
+        icon_url?: string;
+        metadata?: Record<string, any>;
+    }[]> {
+        return query(
+            `SELECT ch.* 
+             FROM channels ch
+             JOIN categories cat ON ch.category_id = cat.id
+             JOIN channelinfo ci ON ci.provider_id = ch.provider_id AND ci.stream_id = ch.stream_id
+             WHERE cat.provider_id = ? 
+               AND cat.category_type = ? 
+               AND ci.favorite = 1
+             ORDER BY ch.name`,
+            [providerId, categoryType]
+        );
+    }
 }
