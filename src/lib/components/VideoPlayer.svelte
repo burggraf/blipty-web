@@ -158,25 +158,36 @@
 				stream_id: streamId,
 				favorite: false,
 				hidden: false,
-				restricted: false
+				restricted: false,
+				height: null,
+				width: null,
+				status: null,
+				metadata: null
 			};
+
+			// Preserve any existing metadata fields while adding/updating mediaInfo
+			const existingMetadata = channelInfo.metadata || {};
 
 			// Update fields
 			const now = new Date();
 			const updatedInfo = {
 				...channelInfo,
 				status,
-				last_watched: now
+				last_watched: now,
+				metadata: {
+					...existingMetadata,
+					mediaInfo: mediaInfo || null // Store mediaInfo in its own object
+				}
 			};
 
 			// Add height and width if available from mediaInfo
 			if (mediaInfo && status === 'OK') {
-				if (mediaInfo.height) updatedInfo.height = mediaInfo.height;
-				if (mediaInfo.width) updatedInfo.width = mediaInfo.width;
+				updatedInfo.height = mediaInfo.height ?? null;
+				updatedInfo.width = mediaInfo.width ?? null;
 			}
 
 			// Save to database
-			if (channelInfo.id) {
+			if ('id' in channelInfo && channelInfo.id) {
 				await channelInfoRepository.update(updatedInfo);
 			} else {
 				await channelInfoRepository.create(updatedInfo);
@@ -233,16 +244,18 @@
 			}
 
 			// Set up error handling first
-			player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
-				console.error('mpegts.js error:', { type: errorType, detail: errorDetail, url: src });
-				isError = true;
-				errorMessage = `Stream error: ${errorType} - ${errorDetail}`;
+			if (player) {
+				player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
+					console.error('mpegts.js error:', { type: errorType, detail: errorDetail, url: src });
+					isError = true;
+					errorMessage = `Stream error: ${errorType} - ${errorDetail}`;
 
-				// Update channel info with error status
-				if (providerId && streamId) {
-					updateChannelInfo(`Error: ${errorType} - ${errorDetail}`);
-				}
-			});
+					// Update channel info with error status
+					if (providerId && streamId) {
+						updateChannelInfo(`Error: ${errorType} - ${errorDetail}`);
+					}
+				});
+			}
 
 			player.on(mpegts.Events.STATISTICS_INFO, (stats: Statistics) => {
 				////console.debug('Stream stats:', stats);
@@ -305,10 +318,13 @@
 					}
 				}, 100);
 
-				player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
-					clearInterval(checkReady);
-					reject(new Error(`Player error: ${errorType} - ${errorDetail}`));
-				});
+				// Only attach error handler if player exists
+				if (player) {
+					player.on(mpegts.Events.ERROR, (errorType: ErrorType, errorDetail: ErrorDetail) => {
+						clearInterval(checkReady);
+						reject(new Error(`Player error: ${errorType} - ${errorDetail}`));
+					});
+				}
 			});
 
 			// Start playback
@@ -503,24 +519,5 @@
 		text-align: center;
 		color: white;
 		z-index: 1000;
-	}
-
-	.play-button {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: 1rem 2rem;
-		font-size: 1.2rem;
-		background: rgba(255, 255, 255, 0.9);
-		border: none;
-		border-radius: 0.5rem;
-		cursor: pointer;
-		z-index: 1000;
-		transition: background-color 0.2s;
-	}
-
-	.play-button:hover {
-		background: white;
 	}
 </style>
