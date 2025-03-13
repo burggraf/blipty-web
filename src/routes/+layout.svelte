@@ -5,11 +5,15 @@
 	import * as Accordion from '$lib/components/ui/accordion';
 	import { MenuIcon, RefreshCw, Heart } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
 	import { ProviderRepository } from '$lib/repositories/provider.repository';
 	import { CategoryRepository, type CategoryType } from '$lib/repositories/category.repository';
 	import { ChannelRepository } from '$lib/repositories/channel.repository';
-	import { ChannelInfoRepository } from '$lib/repositories/channelinfo.repository';
+	import {
+		ChannelInfoRepository,
+		type ChannelInfo
+	} from '$lib/repositories/channelinfo.repository';
 	import type { Provider } from '$lib/repositories/provider.repository';
 	import type { Channel } from '$lib/repositories/channel.repository';
 	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
@@ -28,6 +32,9 @@
 	let showAddProviderDialog = $state(false);
 	let favoriteChannels = $state<Map<string, boolean>>(new Map());
 
+	// Store channelinfo data by provider_id and stream_id
+	let channelInfoData = $state<Record<string, ChannelInfo>>({});
+
 	// Store category stats and channels by provider
 	let categoryStatsByProvider = $state<
 		Record<number, { category_type: CategoryType; count: number }[]>
@@ -39,6 +46,18 @@
 
 	// New state to store favorite channels by content type
 	let favoriteChannelsByType = $state<Record<number, Record<string, Channel[]>>>({});
+
+	// Helper function to get channel info
+	async function getChannelInfo(providerId: number, streamId: string): Promise<ChannelInfo | null> {
+		const key = `${providerId}-${streamId}`;
+		if (!channelInfoData[key]) {
+			const info = await channelInfoRepo.findByStreamId(providerId, streamId);
+			if (info) {
+				channelInfoData[key] = info;
+			}
+		}
+		return channelInfoData[key] || null;
+	}
 
 	$effect.pre(() => {
 		initializeDB()
@@ -78,6 +97,8 @@
 		favorites.forEach((info) => {
 			const key = `${info.provider_id}-${info.stream_id}`;
 			newFavorites.set(key, true);
+			// Store channel info data
+			channelInfoData[key] = info;
 		});
 
 		favoriteChannels = newFavorites;
@@ -98,10 +119,17 @@
 		// Load favorites for each content type
 		for (const stat of categoryStatsByProvider[providerId] || []) {
 			const type = stat.category_type;
-			favoriteChannelsByType[providerId][type] = await categoryRepo.getFavoriteChannelsByType(
-				providerId,
-				type
-			);
+			const favoriteChannels = await categoryRepo.getFavoriteChannelsByType(providerId, type);
+			favoriteChannelsByType[providerId][type] = favoriteChannels;
+
+			// Load channel info data for each favorite channel
+			for (const channel of favoriteChannels) {
+				const info = await channelInfoRepo.findByStreamId(providerId, channel.stream_id);
+				if (info) {
+					const key = `${providerId}-${channel.stream_id}`;
+					channelInfoData[key] = info;
+				}
+			}
 		}
 	}
 
@@ -155,9 +183,17 @@
 
 			// Load channels for each category
 			for (const category of categories) {
-				channelsByCategory[category.category_id] = await channelRepo.findByCategory(
-					category.category_id
-				);
+				const channels = await channelRepo.findByCategory(category.category_id);
+				channelsByCategory[category.category_id] = channels;
+
+				// Load channel info data for each channel
+				for (const channel of channels) {
+					const info = await channelInfoRepo.findByStreamId(providerId, channel.stream_id);
+					if (info) {
+						const key = `${providerId}-${channel.stream_id}`;
+						channelInfoData[key] = info;
+					}
+				}
 			}
 		}
 
@@ -260,15 +296,22 @@
 																		<Accordion.Content>
 																			<div class="pl-4 text-sm">
 																				{#each favoriteChannelsByType[provider.id][category_type] as channel}
+																					{@const key = `${provider.id}-${channel.stream_id}`}
+																					{@const channelInfo = channelInfoData[key]}
 																					<div
 																						class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
 																					>
 																						<button
-																							class="flex-1 text-left"
+																							class="flex flex-1 items-center gap-1 text-left"
 																							onclick={() =>
 																								handleChannelClick(channel, provider.id!)}
 																						>
 																							{channel.name}
+																							{#if channelInfo?.height}
+																								<Badge variant="secondary" class="ml-1"
+																									>{channelInfo.height}p</Badge
+																								>
+																							{/if}
 																						</button>
 																						<Button
 																							variant="ghost"
@@ -297,15 +340,22 @@
 																			<div class="pl-4 text-sm">
 																				{#if channelsByCategory[category.category_id]}
 																					{#each channelsByCategory[category.category_id] as channel}
+																						{@const key = `${provider.id}-${channel.stream_id}`}
+																						{@const channelInfo = channelInfoData[key]}
 																						<div
 																							class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
 																						>
 																							<button
-																								class="flex-1 text-left"
+																								class="flex flex-1 items-center gap-1 text-left"
 																								onclick={() =>
 																									handleChannelClick(channel, provider.id!)}
 																							>
 																								{channel.name}
+																								{#if channelInfo?.height}
+																									<Badge variant="secondary" class="ml-1"
+																										>{channelInfo.height}p</Badge
+																									>
+																								{/if}
 																							</button>
 																							<Button
 																								variant="ghost"
