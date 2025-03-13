@@ -3,12 +3,13 @@
 	import { initializeDB } from '$lib/services/db';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { MenuIcon, RefreshCw } from 'lucide-svelte';
+	import { MenuIcon, RefreshCw, Heart } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
 	import { ProviderRepository } from '$lib/repositories/provider.repository';
-	import { CategoryRepository } from '$lib/repositories/category.repository';
+	import { CategoryRepository, type CategoryType } from '$lib/repositories/category.repository';
 	import { ChannelRepository } from '$lib/repositories/channel.repository';
+	import { ChannelInfoRepository } from '$lib/repositories/channelinfo.repository';
 	import type { Provider } from '$lib/repositories/provider.repository';
 	import type { Channel } from '$lib/repositories/channel.repository';
 	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
@@ -22,10 +23,12 @@
 	let providerRepo = new ProviderRepository();
 	let categoryRepo = new CategoryRepository();
 	let channelRepo = new ChannelRepository();
+	let channelInfoRepo = new ChannelInfoRepository();
 	let showAddProviderDialog = $state(false);
+	let favoriteChannels = $state<Map<string, boolean>>(new Map());
 
 	// Store category stats and channels by provider
-	let categoryStatsByProvider = $state<Record<number, { category_type: string; count: number }[]>>(
+	let categoryStatsByProvider = $state<Record<number, { category_type: CategoryType; count: number }[]>>(
 		{}
 	);
 	let categoriesByType = $state<
@@ -44,6 +47,8 @@
 						await loadProviderData(provider.id);
 					}
 				}
+				// Load all favorites
+				await loadFavorites();
 			})
 			.catch(console.error);
 	});
@@ -61,6 +66,36 @@
 		window.addEventListener('provider:created', handleProviderCreated);
 		return () => window.removeEventListener('provider:created', handleProviderCreated);
 	});
+
+	async function loadFavorites() {
+		const favorites = await channelInfoRepo.findFavorites();
+		const newFavorites = new Map();
+
+		favorites.forEach(info => {
+			const key = `${info.provider_id}-${info.stream_id}`;
+			newFavorites.set(key, true);
+		});
+
+		favoriteChannels = newFavorites;
+	}
+
+	async function toggleFavorite(e: MouseEvent, providerId: number, streamId: string) {
+		e.stopPropagation();
+
+		const newState = await channelInfoRepo.toggleFavorite(providerId, streamId);
+		const key = `${providerId}-${streamId}`;
+
+		// Update local state
+		const updatedFavorites = new Map(favoriteChannels);
+
+		if (newState) {
+			updatedFavorites.set(key, true);
+		} else {
+			updatedFavorites.delete(key);
+		}
+
+		favoriteChannels = updatedFavorites;
+	}
 
 	async function syncProvider(providerId: number) {
 		if (!providerId || syncingProviders.has(providerId)) return;
@@ -114,7 +149,7 @@
 		}
 	}
 
-	function getCategoryTypeLabel(type: string): string {
+	function getCategoryTypeLabel(type: CategoryType): string {
 		switch (type) {
 			case 'live':
 				return 'Live TV';
@@ -191,13 +226,27 @@
 																			<div class="pl-4 text-sm">
 																				{#if channelsByCategory[category.category_id]}
 																					{#each channelsByCategory[category.category_id] as channel}
-																						<button
-																							class="w-full rounded-sm px-2 py-1 text-left hover:bg-accent/50"
-																							onclick={() =>
-																								handleChannelClick(channel, provider.id!)}
-																						>
-																							{channel.name}
-																						</button>
+																						<div class="flex items-center gap-1 w-full rounded-sm px-2 py-1 hover:bg-accent/50">
+																							<button
+																								class="flex-1 text-left"
+																								onclick={() =>
+																									handleChannelClick(channel, provider.id!)}
+																							>
+																								{channel.name}
+																							</button>
+																							<Button
+																								variant="ghost"
+																								size="icon"
+																								class="h-6 w-6"
+																								onclick={(e) => toggleFavorite(e, provider.id!, channel.stream_id)}
+																							>
+																								<Heart
+																									class="h-4 w-4"
+																									fill={favoriteChannels.has(`${provider.id}-${channel.stream_id}`) ? 'currentColor' : 'none'}
+																								/>
+																								<span class="sr-only">Toggle Favorite</span>
+																							</Button>
+																						</div>
 																					{/each}
 																				{/if}
 																			</div>
