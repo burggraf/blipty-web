@@ -25,6 +25,7 @@
 
 	async function loadProviders() {
 		error = null;
+		loading = true;
 		try {
 			providers = await providerRepo.findAll();
 		} catch (err) {
@@ -114,7 +115,13 @@
 						{error}
 					</Wrapper>
 				{:else}
-					<VideoPlayer id="vp" src={selectedChannelUrl} channelName={selectedChannel?.name ?? ''} />
+					<VideoPlayer
+						id="vp"
+						src={selectedChannelUrl}
+						channelId={selectedChannel?.id}
+						providerId={selectedChannel?.provider_id}
+						streamId={selectedChannel?.stream_id}
+					/>
 				{/if}
 			</Wrapper>
 		</Wrapper>

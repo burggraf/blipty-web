@@ -4,6 +4,7 @@
 	import 'video.js/dist/video-js.css';
 	import Button from './ui/button/button.svelte';
 	import Info from 'lucide-svelte/icons/info';
+	import { channelInfoRepository } from '$lib/repositories/channelinfo.repository';
 
 	// Add type definitions at the top
 	type ErrorType = string;
@@ -11,6 +12,8 @@
 	type MediaInfo = {
 		mimeType?: string;
 		duration?: number;
+		width?: number;
+		height?: number;
 		[key: string]: any;
 	};
 	type Statistics = {
@@ -18,7 +21,12 @@
 		[key: string]: any;
 	};
 
-	let { src } = $props<{ src: string }>();
+	let { src, channelId, providerId, streamId } = $props<{
+		src: string;
+		channelId?: number;
+		providerId?: number;
+		streamId?: string;
+	}>();
 	let videoId = $state(`video-${Math.random().toString(36).substring(2, 9)}`);
 	let player = $state<mpegts.Player | null>(null);
 	let vjsPlayer = $state<any>(null);
@@ -31,6 +39,8 @@
 	let playerContainer = $state<HTMLDivElement | null>(null);
 	let needsReset = $state(false);
 	let info = $state<MediaInfo | null>(null);
+	let playbackSuccessful = $state(false);
+
 	function destroyPlayer() {
 		if (isDestroying) return;
 		isDestroying = true;
@@ -132,6 +142,52 @@
 		console.log('Video element recreated with ID:', id);
 	}
 
+	// Function to update channel info in the database
+	async function updateChannelInfo(status: string, mediaInfo?: MediaInfo) {
+		if (!providerId || !streamId) {
+			console.log('Cannot update channelinfo: missing providerId or streamId');
+			return;
+		}
+
+		try {
+			console.log(`Updating channelinfo for provider ${providerId}, stream ${streamId}`);
+
+			// Get the existing channelinfo or create new if doesn't exist
+			const channelInfo = (await channelInfoRepository.findByStreamId(providerId, streamId)) || {
+				provider_id: providerId,
+				stream_id: streamId,
+				favorite: false,
+				hidden: false,
+				restricted: false
+			};
+
+			// Update fields
+			const now = new Date();
+			const updatedInfo = {
+				...channelInfo,
+				status,
+				last_watched: now
+			};
+
+			// Add height and width if available from mediaInfo
+			if (mediaInfo && status === 'OK') {
+				if (mediaInfo.height) updatedInfo.height = mediaInfo.height;
+				if (mediaInfo.width) updatedInfo.width = mediaInfo.width;
+			}
+
+			// Save to database
+			if (channelInfo.id) {
+				await channelInfoRepository.update(updatedInfo);
+			} else {
+				await channelInfoRepository.create(updatedInfo);
+			}
+
+			console.log('Successfully updated channelinfo');
+		} catch (error) {
+			console.error('Failed to update channelinfo:', error);
+		}
+	}
+
 	async function initializePlayer() {
 		if (isInitializing) {
 			console.log('Player initialization already in progress, skipping...');
@@ -141,6 +197,7 @@
 		isInitializing = true;
 		isError = false;
 		errorMessage = '';
+		playbackSuccessful = false;
 
 		try {
 			if (!videoElement) {
@@ -180,6 +237,11 @@
 				console.error('mpegts.js error:', { type: errorType, detail: errorDetail, url: src });
 				isError = true;
 				errorMessage = `Stream error: ${errorType} - ${errorDetail}`;
+
+				// Update channel info with error status
+				if (providerId && streamId) {
+					updateChannelInfo(`Error: ${errorType} - ${errorDetail}`);
+				}
 			});
 
 			player.on(mpegts.Events.STATISTICS_INFO, (stats: Statistics) => {
@@ -262,17 +324,36 @@
 							currentTime: videoElement.currentTime,
 							readyState: videoElement.readyState
 						});
+
+						// Mark playback as successful and update channel info
+						playbackSuccessful = true;
+						if (providerId && streamId) {
+							updateChannelInfo('OK', info || undefined);
+						}
+
 						clearInterval(playbackCheck);
 					}
 				}
 			}, 1000);
 
 			// Clear the check after 10 seconds regardless
-			setTimeout(() => clearInterval(playbackCheck), 10000);
+			setTimeout(() => {
+				clearInterval(playbackCheck);
+				// If playback hasn't been confirmed as successful by this point, update with a timeout error
+				if (!playbackSuccessful && providerId && streamId) {
+					updateChannelInfo('Error: Playback did not start within timeout period');
+				}
+			}, 10000);
 		} catch (error: unknown) {
 			console.error('Player initialization failed:', error);
 			isError = true;
 			errorMessage = error instanceof Error ? error.message : 'Failed to initialize video player';
+
+			// Update channel info with error status
+			if (providerId && streamId) {
+				updateChannelInfo(`Error: ${errorMessage}`);
+			}
+
 			destroyPlayer();
 		} finally {
 			isInitializing = false;
@@ -284,6 +365,9 @@
 		console.log('Source changed from', currentSrc, 'to', newSrc);
 
 		currentSrc = newSrc;
+
+		// Reset playback success state for new source
+		playbackSuccessful = false;
 
 		// Complete cleanup first
 		destroyPlayer();
