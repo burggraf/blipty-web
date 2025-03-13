@@ -2,7 +2,6 @@
 	import mpegts from 'mpegts.js';
 	import videojs from 'video.js';
 	import 'video.js/dist/video-js.css';
-	import type { SvelteHTMLElements } from 'svelte/elements';
 
 	// Add type definitions at the top
 	type ErrorType = string;
