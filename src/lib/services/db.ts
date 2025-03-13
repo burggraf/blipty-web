@@ -136,6 +136,20 @@ async function createTables() {
             metadata JSON
         );
 
+        CREATE TABLE IF NOT EXISTS channelinfo (
+            id INTEGER PRIMARY KEY,
+            provider_id INTEGER NOT NULL,
+            stream_id TEXT NOT NULL,
+            favorite BOOLEAN DEFAULT FALSE,
+            height NUMERIC,
+            width NUMERIC,
+            status TEXT,
+            last_watched DATETIME,
+            metadata JSON,
+            UNIQUE(provider_id, stream_id),
+            FOREIGN KEY(provider_id) REFERENCES providers(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS epg_data (
             channel_id INTEGER REFERENCES channels(id),
             start TIMESTAMP NOT NULL,
