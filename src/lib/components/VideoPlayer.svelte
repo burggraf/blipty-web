@@ -2,6 +2,8 @@
 	import mpegts from 'mpegts.js';
 	import videojs from 'video.js';
 	import 'video.js/dist/video-js.css';
+	import Button from './ui/button/button.svelte';
+	import Info from 'lucide-svelte/icons/info';
 
 	// Add type definitions at the top
 	type ErrorType = string;
@@ -28,7 +30,7 @@
 	let isDestroying = $state(false);
 	let playerContainer = $state<HTMLDivElement | null>(null);
 	let needsReset = $state(false);
-
+	let info = $state<MediaInfo | null>(null);
 	function destroyPlayer() {
 		if (isDestroying) return;
 		isDestroying = true;
@@ -181,14 +183,17 @@
 			});
 
 			player.on(mpegts.Events.STATISTICS_INFO, (stats: Statistics) => {
-				console.debug('Stream stats:', stats);
+				////console.debug('Stream stats:', stats);
 				if (stats.decodedFrames > 0) {
-					console.log('Stream is decoding successfully');
+					////console.log('Stream is decoding successfully');
 				}
 			});
 
 			player.on(mpegts.Events.MEDIA_INFO, (mediaInfo: MediaInfo) => {
 				console.debug('Media info:', mediaInfo);
+				if (mediaInfo) {
+					info = mediaInfo;
+				}
 			});
 
 			// Initialize video element
@@ -340,6 +345,12 @@
 			destroyPlayer();
 		};
 	});
+	const toggleInfo = () => {
+		const infoEl = document.getElementById('info');
+		if (infoEl) {
+			infoEl.style.display = infoEl.style.display === 'none' ? 'block' : 'none';
+		}
+	};
 </script>
 
 <div class="video-wrapper">
@@ -357,12 +368,28 @@
 		preload="auto"
 		crossorigin="anonymous"
 	>
+		<track
+			kind="captions"
+			src="path/to/captions.vtt"
+			srclang="en"
+			label="English captions"
+			default
+		/>
 		<p class="vjs-no-js">
 			To view this video please enable JavaScript, and consider upgrading to a web browser that
 			supports HTML5 video
 		</p>
 	</video>
 </div>
+<div id="info" style="display: none;">
+	{#if info}
+		<pre>{JSON.stringify(info, null, 2)}</pre>
+	{/if}
+</div>
+<Button variant="ghost" size="icon" onclick={toggleInfo}>
+	<Info class="h-4 w-4" />
+	<span class="sr-only">Add Provider</span>
+</Button>
 
 <style>
 	.video-wrapper {
