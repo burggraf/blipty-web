@@ -2,6 +2,7 @@
 	import mpegts from 'mpegts.js';
 	import videojs from 'video.js';
 	import 'video.js/dist/video-js.css';
+	import type { SvelteHTMLElements } from 'svelte/elements';
 
 	// Add type definitions at the top
 	type ErrorType = string;
@@ -26,6 +27,8 @@
 	let videoElement = $state<HTMLVideoElement | null>(null);
 	let isInitializing = $state(false);
 	let isDestroying = $state(false);
+	let playerContainer = $state<HTMLDivElement | null>(null);
+	let needsReset = $state(false);
 
 	function destroyPlayer() {
 		if (isDestroying) return;
@@ -71,6 +74,63 @@
 		}
 	}
 
+	// Function to recreate the video element to ensure a clean state
+	function recreateVideoElement() {
+		if (!playerContainer) return;
+
+		// Store the ID to reuse
+		const id = videoId;
+
+		// Remove the old video element
+		if (videoElement) {
+			// Check if videoElement is actually a child of playerContainer before removing
+			if (videoElement.parentNode === playerContainer) {
+				playerContainer.removeChild(videoElement);
+			} else {
+				// If the element isn't where we expect it, let's find it by ID instead
+				const existingElement = document.getElementById(videoId);
+				if (existingElement && existingElement.parentNode) {
+					existingElement.parentNode.removeChild(existingElement);
+				}
+			}
+		}
+
+		// Create a new video element with the same attributes
+		const newVideo = document.createElement('video');
+		newVideo.id = id;
+		newVideo.className = 'video-js vjs-big-play-button-centered vjs-fluid';
+		newVideo.setAttribute('playsinline', '');
+		newVideo.setAttribute('controls', '');
+		newVideo.setAttribute('preload', 'auto');
+		newVideo.setAttribute('crossorigin', 'anonymous');
+
+		// Add the no-js message
+		const noJsMessage = document.createElement('p');
+		noJsMessage.className = 'vjs-no-js';
+		noJsMessage.textContent =
+			'To view this video please enable JavaScript, and consider upgrading to a web browser that supports HTML5 video';
+		newVideo.appendChild(noJsMessage);
+
+		// Add the new video element to the container
+		playerContainer.appendChild(newVideo);
+
+		// Update the reference
+		videoElement = newVideo;
+
+		// Add error event listener
+		videoElement.addEventListener('error', (e: Event) => {
+			const error = videoElement?.error;
+			if (error) {
+				console.error('Video error:', {
+					code: error.code,
+					message: error.message || 'Unknown error'
+				});
+			}
+		});
+
+		console.log('Video element recreated with ID:', id);
+	}
+
 	async function initializePlayer() {
 		if (isInitializing) {
 			console.log('Player initialization already in progress, skipping...');
@@ -108,7 +168,7 @@
 					cors: true,
 					withCredentials: false
 				}
-			});
+			} as any); // Use type assertion as a workaround for TypeScript errors with mpegts.js
 
 			if (!player) {
 				throw new Error('Failed to create mpegts player');
@@ -220,13 +280,18 @@
 		console.log('Source changed from', currentSrc, 'to', newSrc);
 
 		currentSrc = newSrc;
+
+		// Complete cleanup first
 		destroyPlayer();
 
+		// Recreate video element to ensure clean state when switching sources
+		recreateVideoElement();
+
 		// Ensure cleanup is complete before initializing new player
-		await new Promise((resolve) => setTimeout(resolve, 100));
+		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		// Initialize new player
-		if (newSrc) {
+		if (newSrc && videoElement) {
 			await initializePlayer();
 		}
 	}
@@ -238,6 +303,9 @@
 			mounted = true;
 			setTimeout(() => {
 				videoElement = document.getElementById(videoId) as HTMLVideoElement;
+				// Get reference to the player container for video element recreation
+				playerContainer = document.querySelector('.video-wrapper') as HTMLDivElement;
+
 				if (videoElement) {
 					console.log('Video element mounted successfully');
 					videoElement.addEventListener('error', (e: Event) => {
