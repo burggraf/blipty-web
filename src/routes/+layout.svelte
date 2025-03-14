@@ -303,13 +303,13 @@
 																						class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
 																					>
 																						<button
-																							class="flex flex-1 items-center gap-1 text-left"
+																							class="flex flex-1 items-center text-left"
 																							onclick={() =>
 																								handleChannelClick(channel, provider.id!)}
 																						>
-																							{channel.name}
+																							<span class="flex-1">{channel.name}</span>
 																							{#if channelInfo?.height}
-																								<Badge variant="secondary" class="ml-1"
+																								<Badge variant="secondary"
 																									>{channelInfo.height}p</Badge
 																								>
 																							{/if}
@@ -376,13 +376,13 @@
 																							class="flex w-full items-center gap-1 rounded-sm px-2 py-1 hover:bg-accent/50"
 																						>
 																							<button
-																								class="flex flex-1 items-center gap-1 text-left"
+																								class="flex flex-1 items-center text-left"
 																								onclick={() =>
 																									handleChannelClick(channel, provider.id!)}
 																							>
-																								{channel.name}
+																								<span class="flex-1">{channel.name}</span>
 																								{#if channelInfo?.height}
-																									<Badge variant="secondary" class="ml-1"
+																									<Badge variant="secondary"
 																										>{channelInfo.height}p</Badge
 																									>
 																								{/if}
