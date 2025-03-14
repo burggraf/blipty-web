@@ -141,54 +141,72 @@
 					</Button>
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid grid-cols-3 gap-4">
 					<div class="rounded-md border p-4">
 						<h3 class="mb-2 text-lg font-semibold">Channel Info</h3>
 						<div class="space-y-2">
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">ID:</span>
-								<span class="col-span-2">{currentChannel?.stream_id || 'N/A'}</span>
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">ID:</span>
+								<span class="col-span-6">{currentChannel?.stream_id || 'N/A'}</span>
 							</div>
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">Resolution:</span>
-								<span class="col-span-2"
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">Resolution:</span>
+								<span class="col-span-6"
 									>{channelInfo.height ? `${channelInfo.height}p` : 'Unknown'}</span
 								>
 							</div>
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">Favorite:</span>
-								<span class="col-span-2">{channelInfo.favorite ? 'Yes' : 'No'}</span>
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">Favorite:</span>
+								<span class="col-span-6">{channelInfo.favorite ? 'Yes' : 'No'}</span>
 							</div>
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">Hidden:</span>
-								<span class="col-span-2">{channelInfo.hidden ? 'Yes' : 'No'}</span>
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">Hidden:</span>
+								<span class="col-span-6">{channelInfo.hidden ? 'Yes' : 'No'}</span>
 							</div>
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">Restricted:</span>
-								<span class="col-span-2">{channelInfo.restricted ? 'Yes' : 'No'}</span>
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">Restricted:</span>
+								<span class="col-span-6">{channelInfo.restricted ? 'Yes' : 'No'}</span>
 							</div>
-							<div class="grid grid-cols-3 gap-1">
-								<span class="text-muted-foreground">Status:</span>
-								<span class="col-span-2">{channelInfo.status || 'Unknown'}</span>
+							<div class="grid grid-cols-12 gap-3">
+								<span class="col-span-6 font-medium text-muted-foreground">Status:</span>
+								<span class="col-span-6">{channelInfo.status || 'Unknown'}</span>
 							</div>
 						</div>
 					</div>
 
-					<div class="rounded-md border p-4">
+					<div class="col-span-2 rounded-md border p-4">
 						<h3 class="mb-2 text-lg font-semibold">Metadata</h3>
 						{#if Object.keys(metadata).length > 0}
 							<div class="max-h-60 space-y-2 overflow-y-auto">
 								{#each Object.entries(metadata) as [key, value]}
-									<div class="grid grid-cols-3 gap-1">
-										<span class="text-muted-foreground">{key}:</span>
-										<span class="col-span-2 break-words">
-											{#if typeof value === 'object'}
-												{JSON.stringify(value)}
-											{:else}
-												{value}
-											{/if}
-										</span>
-									</div>
+									{#if key === 'mediaInfo' && typeof value === 'object'}
+										<!-- Enumerate fields inside mediaInfo -->
+										{#each Object.entries(value) as [mediaKey, mediaValue]}
+											<div class="grid grid-cols-12 gap-3">
+												<span class="col-span-4 pr-2 font-medium text-muted-foreground"
+													>{mediaKey}:</span
+												>
+												<span class="col-span-8 break-words pl-2">
+													{#if typeof mediaValue === 'object'}
+														{JSON.stringify(mediaValue)}
+													{:else}
+														{mediaValue}
+													{/if}
+												</span>
+											</div>
+										{/each}
+									{:else}
+										<div class="grid grid-cols-12 gap-3">
+											<span class="col-span-4 pr-2 font-medium text-muted-foreground">{key}:</span>
+											<span class="col-span-8 break-words pl-2">
+												{#if typeof value === 'object'}
+													{JSON.stringify(value)}
+												{:else}
+													{value}
+												{/if}
+											</span>
+										</div>
+									{/if}
 								{/each}
 							</div>
 						{:else}
