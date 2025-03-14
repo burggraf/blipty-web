@@ -54,6 +54,9 @@
 	let selectedChannel = $state<Channel | null>(null);
 	let selectedProviderId = $state<number | null>(null);
 
+	// Channel details dialog reference
+	let channelDetailsDialog;
+
 	// Helper function to get channel info
 	async function getChannelInfo(providerId: number, streamId: string): Promise<ChannelInfo | null> {
 		const key = `${providerId}-${streamId}`;
@@ -338,19 +341,20 @@
 																							</Popover.Trigger>
 																							<Popover.Content class="w-48">
 																								<div class="flex flex-col gap-1">
-																									<Button
-																										variant="ghost"
-																										class="w-full justify-start"
-																										onclick={() => {
-																											selectedChannel = channel;
-																											selectedProviderId = provider.id;
-																											showChannelDetails = true;
-																											// Close the popover after clicking View Details
-																											document.body.click(); // This will close the popover
-																										}}
-																									>
-																										View Details
-																									</Button>
+																									<Popover.Close>
+																										<Button
+																											variant="ghost"
+																											class="w-full justify-start"
+																											onclick={() => {
+																												window.openChannelDetails(
+																													channel,
+																													provider.id
+																												);
+																											}}
+																										>
+																											View Details
+																										</Button>
+																									</Popover.Close>
 																									<Button
 																										variant="ghost"
 																										class="w-full justify-start"
@@ -431,19 +435,20 @@
 																								</Popover.Trigger>
 																								<Popover.Content class="w-48">
 																									<div class="flex flex-col gap-1">
-																										<Button
-																											variant="ghost"
-																											class="w-full justify-start"
-																											onclick={() => {
-																												selectedChannel = channel;
-																												selectedProviderId = provider.id;
-																												showChannelDetails = true;
-																												// Close the popover after clicking View Details
-																												document.body.click(); // This will close the popover
-																											}}
-																										>
-																											View Details
-																										</Button>
+																										<Popover.Close>
+																											<Button
+																												variant="ghost"
+																												class="w-full justify-start"
+																												onclick={() => {
+																													window.openChannelDetails(
+																														channel,
+																														provider.id
+																													);
+																												}}
+																											>
+																												View Details
+																											</Button>
+																										</Popover.Close>
 																										<Button
 																											variant="ghost"
 																											class="w-full justify-start"
@@ -495,8 +500,4 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-<ChannelDetailsDialog
-	bind:open={showChannelDetails}
-	channel={selectedChannel}
-	providerId={selectedProviderId}
-/>
+<ChannelDetailsDialog />
