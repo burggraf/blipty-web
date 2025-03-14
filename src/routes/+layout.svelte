@@ -3,7 +3,7 @@
 	import { initializeDB } from '$lib/services/db';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { MenuIcon, RefreshCw, Heart } from 'lucide-svelte';
+	import { MenuIcon, RefreshCw, Heart, MoreVertical } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import DatabaseTestDialog from '$lib/components/DatabaseTestDialog.svelte';
@@ -19,6 +19,7 @@
 	import AddProviderForm from '$lib/components/AddProviderForm.svelte';
 	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Popover from '$lib/components/ui/popover';
 
 	let { children } = $props<{ children: any }>();
 
@@ -323,6 +324,35 @@
 																							<Heart class="h-4 w-4" fill="currentColor" />
 																							<span class="sr-only">Remove from Favorites</span>
 																						</Button>
+																						<Popover.Root>
+																							<Popover.Trigger>
+																								<Button variant="ghost" size="icon" class="h-6 w-6">
+																									<MoreVertical class="h-4 w-4" />
+																								</Button>
+																							</Popover.Trigger>
+																							<Popover.Content class="w-48">
+																								<div class="flex flex-col gap-1">
+																									<Button
+																										variant="ghost"
+																										class="w-full justify-start"
+																										onclick={() => {
+																											console.log('View details');
+																										}}
+																									>
+																										View Details
+																									</Button>
+																									<Button
+																										variant="ghost"
+																										class="w-full justify-start"
+																										onclick={() => {
+																											console.log('Add to playlist');
+																										}}
+																									>
+																										Add to Playlist
+																									</Button>
+																								</div>
+																							</Popover.Content>
+																						</Popover.Root>
 																					</div>
 																				{/each}
 																			</div>
@@ -378,6 +408,40 @@
 																								/>
 																								<span class="sr-only">Toggle Favorite</span>
 																							</Button>
+																							<Popover.Root>
+																								<Popover.Trigger>
+																									<Button
+																										variant="ghost"
+																										size="icon"
+																										class="h-6 w-6"
+																									>
+																										<MoreVertical class="h-4 w-4" />
+																										<span class="sr-only">More Options</span>
+																									</Button>
+																								</Popover.Trigger>
+																								<Popover.Content class="w-48">
+																									<div class="flex flex-col gap-1">
+																										<Button
+																											variant="ghost"
+																											class="w-full justify-start"
+																											onclick={() => {
+																												console.log('View details');
+																											}}
+																										>
+																											View Details
+																										</Button>
+																										<Button
+																											variant="ghost"
+																											class="w-full justify-start"
+																											onclick={() => {
+																												console.log('Add to playlist');
+																											}}
+																										>
+																											Add to Playlist
+																										</Button>
+																									</div>
+																								</Popover.Content>
+																							</Popover.Root>
 																						</div>
 																					{/each}
 																				{/if}
