@@ -20,6 +20,7 @@
 	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Popover from '$lib/components/ui/popover';
+	import ChannelDetailsDialog from '$lib/components/ChannelDetailsDialog.svelte';
 
 	let { children } = $props<{ children: any }>();
 
@@ -47,6 +48,11 @@
 
 	// New state to store favorite channels by content type
 	let favoriteChannelsByType = $state<Record<number, Record<string, Channel[]>>>({});
+
+	// New state for channel details dialog
+	let showChannelDetails = $state(false);
+	let selectedChannel = $state<Channel | null>(null);
+	let selectedProviderId = $state<number | null>(null);
 
 	// Helper function to get channel info
 	async function getChannelInfo(providerId: number, streamId: string): Promise<ChannelInfo | null> {
@@ -336,7 +342,11 @@
 																										variant="ghost"
 																										class="w-full justify-start"
 																										onclick={() => {
-																											console.log('View details');
+																											selectedChannel = channel;
+																											selectedProviderId = provider.id;
+																											showChannelDetails = true;
+																											// Close the popover after clicking View Details
+																											document.body.click(); // This will close the popover
 																										}}
 																									>
 																										View Details
@@ -425,7 +435,11 @@
 																											variant="ghost"
 																											class="w-full justify-start"
 																											onclick={() => {
-																												console.log('View details');
+																												selectedChannel = channel;
+																												selectedProviderId = provider.id;
+																												showChannelDetails = true;
+																												// Close the popover after clicking View Details
+																												document.body.click(); // This will close the popover
 																											}}
 																										>
 																											View Details
@@ -480,3 +494,9 @@
 		<AddProviderForm />
 	</Dialog.Content>
 </Dialog.Root>
+
+<ChannelDetailsDialog
+	bind:open={showChannelDetails}
+	channel={selectedChannel}
+	providerId={selectedProviderId}
+/>
