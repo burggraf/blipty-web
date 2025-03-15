@@ -1,0 +1,4 @@
+/*
+  Content-Security-Policy: default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:; media-src * http: https: blob:; connect-src * http: https: ws: wss:;
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
