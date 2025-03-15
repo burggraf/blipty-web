@@ -41,9 +41,21 @@
 	let info = $state<MediaInfo | null>(null);
 	let playbackSuccessful = $state(false);
 
+	// Add a cancellation controller for async operations
+	let currentInitController: AbortController | null = $state(null);
+
 	function destroyPlayer() {
 		if (isDestroying) return;
 		isDestroying = true;
+
+		// Cancel any in-progress initialization
+		if (currentInitController) {
+			currentInitController.abort();
+			currentInitController = null;
+		}
+
+		// Force isInitializing to false to allow new initializations
+		isInitializing = false;
 
 		try {
 			if (player) {
@@ -200,10 +212,22 @@
 	}
 
 	async function initializePlayer() {
+		// Check if we're already initializing
 		if (isInitializing) {
-			console.log('Player initialization already in progress, skipping...');
-			return;
+			console.log('Player initialization already in progress, cancelling it for new request...');
+			// Cancel existing initialization before starting a new one
+			if (currentInitController) {
+				currentInitController.abort();
+				currentInitController = null;
+			}
+			// Small timeout to ensure cleanup completes
+			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
+
+		// Create a new abort controller for this initialization
+		const controller = new AbortController();
+		const signal = controller.signal;
+		currentInitController = controller;
 
 		isInitializing = true;
 		isError = false;
@@ -211,6 +235,11 @@
 		playbackSuccessful = false;
 
 		try {
+			// Check for abort before proceeding
+			if (signal.aborted) {
+				throw new Error('Initialization was cancelled');
+			}
+
 			if (!videoElement) {
 				throw new Error('Video element not found');
 			}
@@ -241,6 +270,11 @@
 
 			if (!player) {
 				throw new Error('Failed to create mpegts player');
+			}
+
+			// Check for abort again
+			if (signal.aborted) {
+				throw new Error('Initialization was cancelled');
 			}
 
 			// Set up error handling first
@@ -274,6 +308,11 @@
 			// Initialize video element
 			videoElement.crossOrigin = 'anonymous';
 
+			// Check for abort again
+			if (signal.aborted) {
+				throw new Error('Initialization was cancelled');
+			}
+
 			// Attach media element before Video.js initialization
 			console.log('Attaching media element to mpegts player...');
 			player.attachMediaElement(videoElement);
@@ -296,6 +335,11 @@
 				techOrder: ['html5']
 			});
 
+			// Check for abort again
+			if (signal.aborted) {
+				throw new Error('Initialization was cancelled');
+			}
+
 			// Load the stream
 			console.log('Loading stream...');
 			await player.load();
@@ -305,7 +349,19 @@
 				const maxAttempts = 50; // 5 seconds timeout
 				let attempts = 0;
 
+				// Listen for abort signal
+				signal.addEventListener('abort', () => {
+					reject(new Error('Player initialization was cancelled'));
+				});
+
 				const checkReady = setInterval(() => {
+					// Check if operation has been aborted
+					if (signal.aborted) {
+						clearInterval(checkReady);
+						reject(new Error('Player initialization was cancelled'));
+						return;
+					}
+
 					attempts++;
 					if (player && videoElement) {
 						if (videoElement.readyState >= 2) {
@@ -327,12 +383,23 @@
 				}
 			});
 
+			// Check for abort again
+			if (signal.aborted) {
+				throw new Error('Initialization was cancelled');
+			}
+
 			// Start playback
 			console.log('Starting playback...');
 			await player.play();
 
 			// Monitor initial playback
 			const playbackCheck = setInterval(() => {
+				// Check if operation has been aborted
+				if (signal.aborted) {
+					clearInterval(playbackCheck);
+					return;
+				}
+
 				if (player && videoElement) {
 					// Remove the direct getStatisticsInfo call and rely on the STATISTICS_INFO event
 					if (videoElement.currentTime > 0) {
@@ -353,14 +420,29 @@
 			}, 1000);
 
 			// Clear the check after 10 seconds regardless
-			setTimeout(() => {
+			const playbackTimeout = setTimeout(() => {
 				clearInterval(playbackCheck);
+				// Check if operation has been aborted
+				if (signal.aborted) return;
+
 				// If playback hasn't been confirmed as successful by this point, update with a timeout error
 				if (!playbackSuccessful && providerId && streamId) {
 					updateChannelInfo('Error: Playback did not start within timeout period');
 				}
 			}, 10000);
+
+			// Clean up timeout if operation is aborted
+			signal.addEventListener('abort', () => {
+				clearInterval(playbackCheck);
+				clearTimeout(playbackTimeout);
+			});
 		} catch (error: unknown) {
+			// Ignore errors from aborted initializations
+			if (error instanceof Error && error.message.includes('cancelled')) {
+				console.log('Player initialization was cancelled:', error.message);
+				return;
+			}
+
 			console.error('Player initialization failed:', error);
 			isError = true;
 			errorMessage = error instanceof Error ? error.message : 'Failed to initialize video player';
@@ -372,7 +454,11 @@
 
 			destroyPlayer();
 		} finally {
-			isInitializing = false;
+			// Only clear initialization flag if this is still the current initialization
+			if (currentInitController === controller) {
+				isInitializing = false;
+				currentInitController = null;
+			}
 		}
 	}
 
@@ -385,14 +471,14 @@
 		// Reset playback success state for new source
 		playbackSuccessful = false;
 
-		// Complete cleanup first
+		// Cancel any in-progress initialization and cleanup first
 		destroyPlayer();
 
 		// Recreate video element to ensure clean state when switching sources
 		recreateVideoElement();
 
 		// Ensure cleanup is complete before initializing new player
-		await new Promise((resolve) => setTimeout(resolve, 200));
+		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		// Initialize new player
 		if (newSrc && videoElement) {
