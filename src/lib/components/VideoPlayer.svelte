@@ -154,61 +154,81 @@
 		console.log('Video element recreated with ID:', id);
 	}
 
-	// Function to update channel info in the database
+	// Add debouncing to updateChannelInfo function to prevent multiple rapid calls
+	const updateQueue = new Map();
 	async function updateChannelInfo(status: string, mediaInfo?: MediaInfo) {
 		if (!providerId || !streamId) {
 			console.log('Cannot update channelinfo: missing providerId or streamId');
 			return;
 		}
 
-		try {
-			console.log(`Updating channelinfo for provider ${providerId}, stream ${streamId}`);
+		// Create a unique key for this update operation
+		const updateKey = `${providerId}-${streamId}`;
 
-			// Get the existing channelinfo or create new if doesn't exist
-			const channelInfo = (await channelInfoRepository.findByStreamId(providerId, streamId)) || {
-				provider_id: providerId,
-				stream_id: streamId,
-				favorite: false,
-				hidden: false,
-				restricted: false,
-				height: null,
-				width: null,
-				status: null,
-				metadata: null
-			};
-
-			// Preserve any existing metadata fields while adding/updating mediaInfo
-			const existingMetadata = channelInfo.metadata || {};
-
-			// Update fields
-			const now = new Date();
-			const updatedInfo = {
-				...channelInfo,
-				status,
-				last_watched: now,
-				metadata: {
-					...existingMetadata,
-					mediaInfo: mediaInfo || null // Store mediaInfo in its own object
-				}
-			};
-
-			// Add height and width if available from mediaInfo
-			if (mediaInfo && status === 'OK') {
-				updatedInfo.height = mediaInfo.height ?? null;
-				updatedInfo.width = mediaInfo.width ?? null;
-			}
-
-			// Save to database
-			if ('id' in channelInfo && channelInfo.id) {
-				await channelInfoRepository.update(updatedInfo);
-			} else {
-				await channelInfoRepository.create(updatedInfo);
-			}
-
-			console.log('Successfully updated channelinfo');
-		} catch (error) {
-			console.error('Failed to update channelinfo:', error);
+		// Clear any pending update for this channel
+		if (updateQueue.has(updateKey)) {
+			clearTimeout(updateQueue.get(updateKey));
 		}
+
+		// Queue this update with a small delay to coalesce multiple rapid updates
+		updateQueue.set(
+			updateKey,
+			setTimeout(async () => {
+				try {
+					console.log(`Updating channelinfo for provider ${providerId}, stream ${streamId}`);
+
+					// Get the existing channelinfo or create new if doesn't exist
+					const channelInfo = (await channelInfoRepository.findByStreamId(
+						providerId,
+						streamId
+					)) || {
+						provider_id: providerId,
+						stream_id: streamId,
+						favorite: false,
+						hidden: false,
+						restricted: false,
+						height: null,
+						width: null,
+						status: null,
+						metadata: null
+					};
+
+					// Preserve any existing metadata fields while adding/updating mediaInfo
+					const existingMetadata = channelInfo.metadata || {};
+
+					// Update fields
+					const now = new Date();
+					const updatedInfo = {
+						...channelInfo,
+						status,
+						last_watched: now,
+						metadata: {
+							...existingMetadata,
+							mediaInfo: mediaInfo || null // Store mediaInfo in its own object
+						}
+					};
+
+					// Add height and width if available from mediaInfo
+					if (mediaInfo && status === 'OK') {
+						updatedInfo.height = mediaInfo.height ?? null;
+						updatedInfo.width = mediaInfo.width ?? null;
+					}
+
+					// Save to database
+					if ('id' in channelInfo && channelInfo.id) {
+						await channelInfoRepository.update(updatedInfo);
+					} else {
+						await channelInfoRepository.create(updatedInfo);
+					}
+
+					console.log('Successfully updated channelinfo');
+					updateQueue.delete(updateKey);
+				} catch (error) {
+					console.error('Failed to update channelinfo:', error);
+					updateQueue.delete(updateKey);
+				}
+			}, 100)
+		); // 100ms debounce time
 	}
 
 	async function initializePlayer() {
@@ -299,10 +319,13 @@
 			});
 
 			player.on(mpegts.Events.MEDIA_INFO, (mediaInfo: MediaInfo) => {
-				console.debug('Media info:', mediaInfo);
-				if (mediaInfo) {
-					info = mediaInfo;
-				}
+				// Use requestAnimationFrame to move the state update off the critical path
+				requestAnimationFrame(() => {
+					console.debug('Media info:', mediaInfo);
+					if (mediaInfo) {
+						info = mediaInfo;
+					}
+				});
 			});
 
 			// Initialize video element
@@ -403,16 +426,18 @@
 				if (player && videoElement) {
 					// Remove the direct getStatisticsInfo call and rely on the STATISTICS_INFO event
 					if (videoElement.currentTime > 0) {
-						console.log('Playback confirmed:', {
-							currentTime: videoElement.currentTime,
-							readyState: videoElement.readyState
-						});
+						requestAnimationFrame(() => {
+							console.log('Playback confirmed:', {
+								currentTime: videoElement.currentTime,
+								readyState: videoElement.readyState
+							});
 
-						// Mark playback as successful and update channel info
-						playbackSuccessful = true;
-						if (providerId && streamId) {
-							updateChannelInfo('OK', info || undefined);
-						}
+							// Mark playback as successful and update channel info
+							playbackSuccessful = true;
+							if (providerId && streamId) {
+								updateChannelInfo('OK', info || undefined);
+							}
+						});
 
 						clearInterval(playbackCheck);
 					}

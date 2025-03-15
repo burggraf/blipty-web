@@ -78,22 +78,41 @@
 
 		<form class="space-y-4" onsubmit={handleSubmit}>
 			<div class="space-y-2">
-				<Input type="text" placeholder="Provider Name" bind:value={name} required />
+				<Input
+					type="text"
+					placeholder="Provider Name"
+					bind:value={name}
+					autocomplete="organization"
+					required
+				/>
 			</div>
 			<div class="space-y-2">
 				<Input
 					type="url"
 					placeholder="Server URL (e.g. http://example.com)"
 					bind:value={server_url}
+					autocomplete="url"
 					required
 					pattern="https?://.+"
 				/>
 			</div>
 			<div class="space-y-2">
-				<Input type="text" placeholder="Username" bind:value={username} required />
+				<Input
+					type="text"
+					placeholder="Username"
+					bind:value={username}
+					autocomplete="username"
+					required
+				/>
 			</div>
 			<div class="space-y-2">
-				<Input type="password" placeholder="Password" bind:value={password} required />
+				<Input
+					type="password"
+					placeholder="Password"
+					bind:value={password}
+					autocomplete="current-password"
+					required
+				/>
 			</div>
 
 			{#if error}
