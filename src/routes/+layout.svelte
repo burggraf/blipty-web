@@ -248,7 +248,7 @@
 					<Sidebar.Trigger>
 						<MenuIcon />
 					</Sidebar.Trigger>
-					<span class="font-semibold">Providers</span>
+					<span class="font-semibold">Providers 1</span>
 					<Button variant="ghost" size="icon" onclick={() => (showAddProviderDialog = true)}>
 						<PlusCircle class="h-4 w-4" />
 						<span class="sr-only">Add Provider</span>
